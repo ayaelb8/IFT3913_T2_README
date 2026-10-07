@@ -1,1 +1,5 @@
-# IFT3913_T2_README
+# Tâche 2
+
+##Classe à tester:
+
+Le choix de classes devait être basé sur la présence de tests pour la classe en question et une couverture de test inférieure à 100%. La classe MediaType.java, présente dans le module tika-core, a été choisie puisque son fichier test existe et se situe dans tika-core/src/test/java/org/apache/tika/mime/MediaTypeTest.java. De plus, l'index permettant de savoir sa couverture avec JaCoCo dans le path suivant: tika-core/target/site/jacoco/org.apache.tika.mime/index.html indique une couverture d'instruction de 79% et une couverture de branche de 74%. De plus, le 'Pit Test Coverage Report' situé dans tika-core/target/pit-reports/org.apache.tika.mime/index.html nous indique une couverture de mutation de 54 %, soit 46/85. En effet, malgré une couverture d'instruction de 79 %, 46 mutants sont tués, 6 mutants survivent et 33 mutants (38,82 %) n'ont pas pu être détectés par manque de tests adéquats exécutant le code correspondant à chaque mutant. Les mutants survivants montrent que certains tests ont réussi malgré la modification introduite par PIT, ce qui indique ainsi des comportements qui ne sont pas suffisamment vérifiés par les tests. Cela nous permet d'avoir des pistes sur les améliorations ou les ajouts à faire pour améliorer les tests existants. 
