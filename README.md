@@ -105,9 +105,22 @@ La première commande compile `tika-core` et les modules dont il dépend. La sec
 
 ### Résultat de la génération
 
-__Où sont les tests générés ?__ ChatUniTest a écrit 9 fichiers dans `tika-core/chatunitest-tests/org/apache/tika/mime/` : 8 classes de test, nommées `MediaType_<méthode>_<n>_<n>_Test.java`, et `MediaType_Suite.java`, qui les regroupe. Elles visent 8 des 17 méthodes publiques de `MediaType` : `application`, `audio`, `image`, `text`, `parse`, `equals`, `compareTo` et `hasParameters`. Aucune classe n'a été produite pour `video`, `set` (deux variantes), `getType`, `getSubtype`, `getBaseType`, `getParameters`, `hashCode` et `toString`. Ce dossier ne fait pas partie des sources de test de Maven : pour exécuter les tests, il faut les copier dans `tika-core/src/test/java/org/apache/tika/mime/`.
+__Où sont les tests générés ?__ ChatUniTest a écrit 9 fichiers dans `tika-core/chatunitest-tests/org/apache/tika/mime/` : 8 classes de test, nommées `MediaType_<méthode>_<n>_<n>_Test.java`, et `MediaType_Suite.java`, qui les regroupe. Elles visent 8 des 17 méthodes publiques de `MediaType` : `application`, `audio`, `image`, `text`, `parse`, `equals`, `compareTo` et `hasParameters`. Aucune classe n'a été produite pour `video`, `set` (deux variantes), `getType`, `getSubtype`, `getBaseType`, `getParameters`, `hashCode` et `toString`. Le dépôt contient donc les tests générés à deux endroits :
 
-__Les tests générés compilent-ils et s'exécutent-ils sans intervention manuelle ?__ Non. Les 8 classes de test compilent telles quelles, mais pas le fichier de suite, et l'exécution a demandé des corrections de la configuration Maven. Les problèmes et les corrections sont décrits dans les deux sections suivantes. Une fois ces corrections faites, les 95 tests s'exécutent, mais seulement 28 réussissent (48 échecs et 19 erreurs). Le détail est donné dans la section « Résultats et analyse des tests générés ».
+| Emplacement | Contenu |
+|---|---|
+| `tika-core/chatunitest-tests/org/apache/tika/mime/` | La sortie brute de ChatUniTest, non modifiée. Ce dossier ne fait pas partie des sources de test de Maven. C'est cette version qu'analysent les sections « Documentation des tests générés » et « Analyse de mutation ». |
+| `tika-core/src/test/java/org/apache/tika/mime/` | Les 8 mêmes classes, corrigées pour que tous leurs tests réussissent. C'est cette version que Maven exécute. Le fichier de suite n'y est pas. |
+
+__Pourquoi ne pas avoir généré les tests directement dans le dossier de tests de Maven ?__ ChatUniTest permet de choisir son dossier de sortie (paramètre `testOutput`) ou de copier les tests générés dans `src/test` (commande `chatunitest:copy`). Nous avons gardé le dossier séparé, parce que les tests générés, placés tels quels dans `src/test`, font échouer le build :
+
+- `MediaType_Suite.java` ne compile pas. Une seule classe qui ne compile pas dans `src/test` bloque la compilation de tous les tests du module, y compris les tests d'origine.
+- 67 des 95 tests générés échouent, et Maven arrête le build dès qu'un test échoue.
+- Les fichiers générés n'ont pas l'en-tête de licence Apache et utilisent des imports en étoile et des imports inutilisés. Le build de Tika applique Checkstyle aux tests et refuse ces trois cas.
+
+Générer directement dans `src/test` n'aurait donc évité aucune correction. Le dossier séparé conserve en plus la sortie brute de l'IA, sans laquelle on ne pourrait plus vérifier combien de tests échouaient ni combien de corrections ont été nécessaires.
+
+__Les tests générés compilent-ils et s'exécutent-ils sans intervention manuelle ?__ Non. Les 8 classes de test compilent telles quelles, mais pas le fichier de suite, et l'exécution a demandé des corrections de la configuration Maven. Une fois ces corrections faites, les 95 tests s'exécutent, mais seulement 28 réussissent (48 échecs et 19 erreurs). Il a ensuite fallu corriger le contenu de 38 méthodes de test pour que les 95 tests réussissent. Les problèmes et les corrections sont décrits dans les deux sections suivantes, et le détail des échecs dans « Résultats et analyse des tests générés ».
 
 ### Problème à la suite de la génération de tests
 
@@ -117,7 +130,9 @@ Dans `MediaType_audio_1_2_Test`, un test a également provoqué une erreur liée
 
 ### Corrections nécessaires
 
-__Combien de corrections ont été nécessaires ?__ Quatre, toutes dans la configuration ou l'intégration. Le contenu des 8 classes générées n'a pas été modifié.
+__Combien de corrections ont été nécessaires ?__ Deux séries de corrections : 4 corrections de configuration pour que les tests s'exécutent, puis la correction de 38 méthodes de test sur 66 (67 exécutions sur 95) pour que tous les tests réussissent.
+
+#### Corrections de configuration et d'intégration
 
 | # | Problème observé | Correction |
 |---|---|---|
@@ -128,7 +143,32 @@ __Combien de corrections ont été nécessaires ?__ Quatre, toutes dans la confi
 
 Après ces corrections, les tests d'origine s'exécutent de nouveau normalement (`MediaTypeTest` : 9 tests, 9 réussis).
 
-Les 67 tests générés qui échouent encore n'ont pas été corrigés : leurs défauts viennent du contenu des tests eux-mêmes (assertions qui ne correspondent pas au comportement réel de `MediaType`, usage inutile de Mockito) et sont analysés plus bas. Par exemple, les 16 erreurs de `MediaType_parse_7_0_Test` viennent toutes de l'annotation `@InjectMocks` appliquée à `MediaType`, que Mockito ne peut pas instancier.
+À ce stade, 67 tests générés échouent encore. Leurs défauts viennent du contenu des tests eux-mêmes (assertions qui ne correspondent pas au comportement réel de `MediaType`, usage inutile de Mockito) et sont analysés dans « Documentation des tests générés ». Par exemple, les 16 erreurs de `MediaType_parse_7_0_Test` viennent toutes de l'annotation `@InjectMocks` appliquée à `MediaType`, que Mockito ne peut pas instancier.
+
+#### Corrections du contenu des tests générés
+
+Pour que tous les nouveaux tests s'exécutent avec succès, nous avons corrigé une copie des 8 classes, placée dans `tika-core/src/test/java/org/apache/tika/mime/`. La sortie brute de ChatUniTest est conservée telle quelle dans `tika-core/chatunitest-tests/`, pour que les analyses de ce document restent vérifiables.
+
+Règle suivie : garder le nom, la structure et l'intention de chaque test, et ne modifier que ce qui l'empêche de réussir, c'est-à-dire la donnée d'entrée, le résultat attendu ou l'usage de Mockito. Chaque résultat attendu corrigé a été déterminé à partir du code de `MediaType`.
+
+| Classe | Méthodes corrigées | Nature des corrections |
+|---|---:|---|
+| `MediaType_application_0_0_Test` | 6 sur 8 | Les données passent un sous-type (`json`) au lieu d'un type complet (`application/json`). Le type est vérifié sur la forme complète, le sous-type attendu n'est plus une chaîne vide, la valeur d'un paramètre est `utf-8` et non `charset=utf-8`, et la forme textuelle de la table des paramètres est `{param1=value1, param2=value2}`. Pour `null`, le résultat attendu est `application/null` et non `null`. |
+| `MediaType_audio_1_2_Test` | 4 sur 5 | Le paramètre est placé dans la chaîne (`mp3; custom=value`) au lieu d'être passé comme second argument. Les résultats attendus sont corrigés pour `null` (`audio/null`), pour la chaîne vide (`null`) et pour `invalid` (`audio/invalid`). Le mock inutilisé est retiré. |
+| `MediaType_compareTo_20_1_Test` | 3 sur 5 | Les tests vérifient le signe du résultat (`> 0`) au lieu de la valeur exacte `-1` ou d'une `NullPointerException`. |
+| `MediaType_equals_18_1_Test` | 0 sur 11 | Aucune. |
+| `MediaType_hasParameters_15_3_Test` | 10 sur 10 | Le mock est remplacé par un vrai objet `MediaType` construit avec les mêmes paramètres. Pour le cas « paramètres nuls », qui ne peut pas exister dans la classe, le test utilise un type sans paramètre. |
+| `MediaType_image_2_1_Test` | 8 sur 9 | La valeur d'un paramètre est `utf-8` et non `charset=utf-8`. Les 7 tests qui attendaient `null` pour une entrée jugée invalide attendent le type réellement retourné, par exemple `image/invalid`. |
+| `MediaType_parse_7_0_Test` | 7 sur 7 | `@InjectMocks` et `@Mock` sont retirés, et `parse()` est appelée comme méthode statique. L'attribut `nullValues = "null"` est ajouté à `@CsvSource`, sans quoi le mot `null` est lu comme une chaîne. `parse(null)` est attendu à `null` et non à une exception. Les formes attendues sont les formes normalisées (sans guillemets) et la valeur `utf-8` telle qu'elle est donnée. |
+| `MediaType_text_3_1_Test` | 0 sur 11 | Aucune. |
+| __Total__ | __38 sur 66__ | |
+
+S'y ajoutent, pour les 8 classes, trois corrections de conformité exigées par le build de Tika, qui applique Checkstyle aux tests : ajout de l'en-tête de licence Apache, remplacement des imports en étoile et des imports inutilisés, et découpage des lignes de plus de 180 caractères.
+
+Résultat : les 95 tests générés réussissent, sans violation Checkstyle. Deux réserves sur ces tests corrigés :
+
+- __Ils décrivent le comportement actuel de la classe.__ Quand l'oracle de l'IA était faux, nous l'avons aligné sur ce que le code fait réellement. Un test comme `testNullApplication`, qui attend maintenant `application/null`, constate ce comportement plus qu'il ne le valide.
+- __Les défauts de conception relevés dans la critique demeurent.__ Les 11 tests de `MediaType_text_3_1_Test` réussissaient déjà et n'ont pas été modifiés : ils passent toujours pour la mauvaise raison, et 6 d'entre eux restent identiques.
 
 ## Documentation des tests générés
 
@@ -186,7 +226,7 @@ __4. Des tests réussissent sans rien démontrer.__ Les 11 tests de `MediaType_t
 
 __5. Les tests sont redondants et mal nommés.__ Dans `MediaType_text_3_1_Test`, 6 des 11 tests utilisent exactement la même entrée sous des noms différents (`...InvalidKeyAndValue`, `...InvalidKeyAndValue2`, `...3`, `...4`). Dans `MediaType_equals_18_1_Test`, 9 des 11 tests vérifient la même propriété (deux objets différents ne sont pas égaux) avec des combinaisons très proches, et `testEqualsWithDifferentOrderOfParameters` n'échange pas l'ordre des paramètres : il inverse la clé et la valeur. Le nombre de tests donne donc une fausse impression de couverture.
 
-__6. Les tests ne visent pas l'objectif de la tâche.__ Les mutants survivants se trouvent dans `isSimpleName()`, accessible par `parse()`. Les tuer demande des entrées aux limites des caractères acceptés (par exemple une majuscule, un espace, ou les caractères `-`, `+`, `.` et `_`). Aucun test généré ne cible ces limites de façon délibérée, et la seule classe consacrée à `parse()` ne s'exécute pas. Nous n'avons pas mesuré le score de mutation des tests générés, mais leur contenu ne permet pas d'attendre une amélioration sur ces mutants.
+__6. Les tests ne visent pas l'objectif de la tâche.__ Les mutants survivants se trouvent dans `isSimpleName()`, accessible par `parse()`. Les tuer demande des entrées aux limites des caractères acceptés (par exemple une majuscule, un espace, ou les caractères `-`, `+`, `.` et `_`). Aucun test généré ne cible ces limites de façon délibérée, et la seule classe consacrée à `parse()` ne s'exécute pas. L'analyse de mutation le confirme : les mutants du chemin du cache de `parse()` et de `isSimpleName()` survivent encore avec les tests générés (voir « Analyse de mutation »).
 
 #### Points positifs
 
@@ -200,6 +240,291 @@ __6. Les tests ne visent pas l'objectif de la tâche.__ Les mutants survivants s
 Sur 95 tests, 28 réussissent, et seule une partie d'entre eux vérifie réellement quelque chose : les 11 tests de `equals()`, et quelques tests isolés des autres classes. Les tests générés par un petit modèle local (`qwen2.5-coder:3b`) peuvent servir de point de départ pour trouver des idées de cas, mais chaque résultat attendu doit être revérifié à partir du code. Ce constat est à lire avec les limites matérielles décrites plus haut (défi 6) : la taille du modèle et le peu de code qu'il pouvait lire ont probablement pesé sur la qualité des tests. Dans leur état actuel, ils ne peuvent pas remplacer les tests écrits à la main dans `MediaTypeTest`.
 
 
+
+## Analyse de mutation
+
+### Scores de mutation
+
+Nous avons exécuté PIT sur `MediaType` avec les tests d'origine, puis avec les tests générés par ChatUniTest. PIT génère 85 mutants pour cette classe.
+
+| Tests utilisés | Mutants tués | Non couverts | Survivants | Couverture de lignes |
+|---|---:|---:|---:|---:|
+| Tests d'origine (`MediaTypeTest`) | 50/85 (59 %) | 33 | 2 | 107/157 (68 %) |
+| Tests générés seuls | 38/85 (45 %) | 37 | 10 | 75/157 (48 %) |
+| Tests d'origine + tests générés | 57/85 (67 %) | 20 | 8 | 120/157 (76 %) |
+| Tests générés corrigés seuls | 63/85 (74 %) | 16 | 6 | 125/157 (80 %) |
+| Tests d'origine + tests générés corrigés | 66/85 (78 %) | 16 | 3 | 125/157 (80 %) |
+| Tests d'origine + tests générés corrigés + tests manuels | 85/85 (100 %) | 0 | 0 | 157/157 (100 %) |
+
+Les lignes « tests générés » portent sur la sortie brute de ChatUniTest, dont seuls les 28 tests qui réussissent sont pris en compte. Les lignes « tests générés corrigés » portent sur la version corrigée, dont les 95 tests réussissent (voir « Corrections du contenu des tests générés »).
+
+__Les tests générés ne détectent donc pas tous les mutants.__ Seuls et sans correction, ils en détectent moins que les tests d'origine. Ajoutés aux tests d'origine, ils font passer le score de 59 % à 67 %, et 28 mutants restent non détectés. Même une fois corrigés, ils laissent 19 mutants non détectés avec les tests d'origine.
+
+Conditions de mesure :
+
+- PIT refuse de démarrer si un test échoue. Comme 67 des 95 tests générés échouent, nous avons activé l'option `skipFailingTests` de PIT : seuls les 28 tests générés qui réussissent participent à l'analyse. Le contenu des tests générés n'a pas été modifié.
+- Pour la mesure sur la sortie brute, les 8 classes de `tika-core/chatunitest-tests/` ont été copiées temporairement dans `tika-core/src/test/java/org/apache/tika/mime/`, et `<targetTests>` a été réglé sur `org.apache.tika.mime.MediaType_*`. L'option `skipFailingTests` n'est pas nécessaire pour la version corrigée.
+- Deux des 38 mutants comptés comme tués par les tests générés ne le sont plus quand on relance PIT famille de mutateurs par famille de mutateurs (36 au lieu de 38). Le score de PIT sur cette classe varie légèrement d'une exécution à l'autre (voir « Écart avec le rapport PIT initial »).
+
+### Mutants détectés par les tests générés, et pourquoi
+
+Les 38 mutants détectés se répartissent en quatre groupes.
+
+| Groupe | Mutants détectés | Test qui les détecte | Pourquoi le mutant est détecté |
+|---|---:|---|---|
+| `isSimpleName()` et le chemin rapide de `parse()` | 26 | `MediaType_text_3_1_Test` (tests `testTextInvalidParameters...`), `MediaType_application_0_0_Test.testEmptyApplication` | Ces tests passent à `parse()` une chaîne qui n'est pas un nom simple, par exemple `text/text/plain; charset=utf-8; ...`, et attendent `null`. Un mutant qui rend `isSimpleName()` plus permissive (condition inversée, retour remplacé par `true`) fait accepter la chaîne : `parse()` retourne alors un objet, et `assertNull` échoue. |
+| Retours de `parse()`, de `image()` et de `audio()` | 4 | `MediaType_image_2_1_Test.testImageMethod`, `MediaType_audio_1_2_Test.testAudioMethod` | Ces tests appellent la méthode avec un sous-type valide (`jpeg`, `mp3`) et comparent le résultat à une valeur précise. Un mutant qui remplace le retour par `null`, ou qui inverse le test `string == null`, change ce résultat. |
+| Accesseurs `getType()`, `getSubtype()` et `toString()` | 4 | `MediaType_image_2_1_Test.testImageMethod` | Le test vérifie les trois valeurs exactes : `image`, `jpeg` et `image/jpeg`. Un retour remplacé par une chaîne vide, ou un indice décalé dans `getSubtype()` (`slash + 1` devenu `slash - 1`), donne une autre valeur. |
+| `equals()` et le constructeur | 4 | `MediaType_equals_18_1_Test` | Les tests vérifient à la fois des cas d'égalité (`assertTrue`) et d'inégalité (`assertFalse`). Un mutant qui force le retour à `true` ou à `false`, ou qui inverse le test `instanceof`, fait échouer l'un des deux. Le mutant du constructeur (test `parameters.isEmpty()` inversé) est détecté par un test qui compare deux types avec paramètres. |
+
+Deux observations :
+
+- __Une seule classe détecte la majorité des mutants.__ La plupart des 26 mutants du premier groupe sont détectés par des tests de `MediaType_text_3_1_Test`. Or nous avons vu que ces tests réussissent pour une mauvaise raison : la chaîne est rejetée à cause du préfixe `text/` en double, et non à cause du paramètre que le test croit invalide. Ils détectent quand même des mutants, parce qu'ils exercent le code qui rejette une chaîne mal formée. Un test peut donc être utile au score de mutation tout en vérifiant autre chose que ce que son nom annonce.
+- __Les détections viennent des oracles précis.__ `testImageMethod` détecte 7 mutants à lui seul parce qu'il compare plusieurs valeurs exactes. À l'inverse, un test qui n'attend que `null` ne peut détecter aucun mutant qui remplace un retour par `null`.
+
+### Mutants non détectés par les tests générés
+
+Sur les 47 mutants que les tests générés ne détectent pas, 37 se trouvent dans du code qu'aucun test généré réussi n'exécute, et 10 survivent.
+
+__Mutants non couverts (37).__
+
+| Méthode | Mutants | Raison |
+|---|---:|---|
+| `parseParameters()`, `unquote()` | 16 | Ces méthodes analysent les paramètres. La seule classe qui les vise, `MediaType_parse_7_0_Test`, ne s'exécute pas (erreur `@InjectMocks`), et les tests des autres classes qui passent des paramètres valides échouent. |
+| `union()` | 7 | Aucun test généré n'utilise les constructeurs qui dérivent un type d'un autre. |
+| `set()`, `getBaseType()`, `video()`, `hashCode()` | 9 | ChatUniTest n'a produit aucune classe de test pour ces méthodes. |
+| `hasParameters()` | 2 | `MediaType_hasParameters_15_3_Test` contient 10 tests, mais ils appellent la méthode sur un mock : le code réel n'est jamais exécuté. |
+| `parse()`, `equals()` | 3 | Branches non atteintes : deux retours de `parse()` pour des chaînes qui ne sont pas des noms simples, et la comparaison avec un objet d'une autre classe. |
+
+__Mutants survivants (10).__
+
+| Mutant | Raison de la survie |
+|---|---|
+| `application()` et `text()` : retour remplacé par `null` (2) | Les seuls tests réussis de ces deux méthodes attendent déjà `null`. Remplacer le retour par `null` ne change donc rien pour eux. |
+| `compareTo()` : retour remplacé par `0` (1) | Les deux tests réussis vérifient l'égalité (résultat `0`) et l'exception sur `null`. Aucun ne vérifie un ordre. |
+| `getParameters()` : retour remplacé par une table vide (1) | Le seul test réussi qui lit les paramètres attend justement une table vide. |
+| Constructeur : calcul des indices et mise entre guillemets (3) | Les tests qui utilisent le constructeur ne vérifient que `equals()`, jamais `getType()`, `getSubtype()` ou la forme textuelle d'un paramètre. |
+| `parse()` et `isSimpleName()` : chemin rapide (3) | Ces mutants ne changent que la mise en cache des types simples ou le traitement des types avec paramètres, qu'aucun test généré réussi n'observe. |
+
+### Apport des tests générés aux tests d'origine
+
+Ajoutés aux tests d'origine, les tests générés détectent 10 mutants que `MediaTypeTest` ne couvrait pas : les retours de `audio()` et de `image()`, `getType()`, les deux mutants de `getSubtype()`, les trois mutants de `equals()`, la dernière ligne de `isSimpleName()` (nom vide) et une branche de `parse()`. Le score net passe de 50 à 57, et non à 60, à cause de la variation du score de PIT mentionnée plus haut.
+
+Il reste 28 mutants non détectés avec les tests d'origine et les tests générés réunis : 20 non couverts (`union()`, `set()`, `getBaseType()`, `hasParameters()`, `video()`, `hashCode()`, une branche de `parse()` et une de `equals()`) et 8 survivants (`application()`, `text()`, `compareTo()`, et le chemin du cache de `parse()` et `isSimpleName()`). 
+### Effet de la correction des tests générés
+
+Une fois corrigés, les tests générés détectent 63 mutants au lieu de 38. Le gain vient surtout des classes qui ne s'exécutaient pas ou qui testaient un mock : `MediaType_parse_7_0_Test` couvre maintenant `parseParameters()` et `unquote()`, et `MediaType_hasParameters_15_3_Test` exécute enfin le code réel de `hasParameters()`.
+
+Avec les tests d'origine et les tests générés corrigés réunis, 19 mutants restent non détectés :
+
+| Mutants restants | Nombre | Raison |
+|---|---:|---|
+| `union()`, `set()`, `video()`, `hashCode()` | 13 | Non couverts : aucun test généré ne vise ces méthodes ni les constructeurs dérivés. |
+| `getBaseType()`, `parse()`, `equals()` | 3 | Non couverts : branches que les tests n'atteignent pas (jeu de caractères avant le type, comparaison avec un objet d'une autre classe, type sans paramètre). |
+| `text()` : retour remplacé par `null` | 1 | Survivant : les 11 tests de `text()`, non modifiés, attendent tous `null`. |
+| `parse()` et `isSimpleName()` : chemin du cache | 2 | Survivants : aucun test n'observe la mise en cache des types simples. |
+
+Ce sont ces mutants que visent les tests écrits à la main, décrits dans la section suivante.
+
+## Tests écrits à la main
+
+Nous avons écrit à la main une nouvelle classe de tests pour `MediaType`, dans un fichier séparé des tests d'origine et des tests générés :
+
+`tika-core/src/test/java/org/apache/tika/mime/MediaTypeManualTest.java`
+
+Elle contient 32 tests JUnit 5. Les tests d'origine (`MediaTypeTest`, 9 tests) n'ont pas été modifiés.
+
+### Démarche
+
+Les tests ont été conçus à partir des rapports de mutation PIT, et non à partir de la seule couverture de lignes. L'analyse de mutation montre que les tests générés ne détectent pas tous les mutants : avec les tests d'origine, il en reste 28 non détectés pour la sortie brute, et 19 après correction. Nous avons écrit les tests manuels pour qu'ils complètent les tests d'origine sans dépendre des tests générés : ils visent les 35 mutants que `MediaTypeTest` seul ne détecte pas (33 non couverts et 2 survivants), ce qui couvre aussi les mutants que les tests générés laissent passer. Pour chacun de ces mutants, nous avons lu le code visé, déterminé le comportement attendu, puis écrit un test dont l'assertion échoue si ce comportement change. Chaque résultat attendu vient du code de `MediaType`[^6] et de sa Javadoc, pas d'une supposition.
+
+### Ce que les tests vérifient
+
+| Groupe | Tests | Comportement vérifié | Mutants visés |
+|---|---:|---|---|
+| Méthodes de fabrique | 3 | `application()`, `audio()`, `image()`, `text()` et `video()` ajoutent leur préfixe au sous-type; un sous-type inconnu est accepté; un sous-type invalide donne `null` | Retour remplacé par `null` (5 mutants non couverts) |
+| `set()` | 3 | Les deux variantes ignorent les valeurs nulles ou non analysables, fusionnent les doublons et retournent un ensemble non modifiable | Condition inversée, retour remplacé par un ensemble vide |
+| `parse()` : entrées rejetées | 4 | `null`, absence de barre oblique, type ou sous-type vide, caractère réservé | Dernière ligne de `isSimpleName()` |
+| `parse()` : noms simples | 4 | Un type simple est mis en cache; les caractères aux limites (`0`, `9`, `a`, `z`, `-`, `+`, `.`, `_`) sont simples; ceux juste à l'extérieur (`` ` ``, `{`, majuscules) ne le sont pas; le cache cesse d'accepter de nouveaux types à 10 000 entrées | Les 2 mutants survivants de `parse()` et `isSimpleName()` |
+| `parse()` : cas général | 2 | Espaces autour des noms; jeu de caractères placé avant le type (TIKA-350) | Branche `CHARSET_FIRST_PATTERN` |
+| Constructeurs dérivés | 5 | Ajout, conservation, fusion et remplacement de paramètres; variantes avec un seul paramètre et avec un `Charset` | Les 7 mutants de `union()` |
+| Accesseurs | 5 | `getType()`, `getSubtype()`, `getBaseType()`, `hasParameters()`; paramètres triés, en minuscules et non modifiables | Retours remplacés, addition remplacée par une soustraction |
+| `equals()`, `hashCode()`, `compareTo()` | 6 | Égalité sur la forme normalisée; différences de type, de sous-type et de paramètres; `null` et autre classe; signe de `compareTo()` | Retours remplacés par `true`, `false` ou `0` |
+
+### Documentation de chaque cas de test
+
+Pour chacun des 32 tests, les tableaux suivants donnent son nom, son intention (le comportement testé), la motivation des données choisies et l'explication de l'oracle (comment le comportement attendu a été déterminé). Les oracles viennent de deux sources : la Javadoc de `MediaType` quand elle décrit le comportement, et sinon la lecture du code de la méthode[^6].
+
+#### Méthodes de fabrique
+
+| Test | Intention | Données et motivation | Oracle |
+|---|---|---|---|
+| `testFactoryMethodsPrefixSubtype` | Chaque méthode de fabrique ajoute son propre type devant le sous-type reçu. | Un sous-type courant et différent pour chacune des cinq méthodes (`pdf`, `mpeg`, `png`, `csv`, `mp4`), pour qu'une méthode qui utiliserait le préfixe d'une autre soit détectée. | Le code de chaque méthode est `parse("<type>/" + sous-type)`. Le résultat attendu est donc la chaîne exacte, par exemple `application/pdf`, comparée avec `toString()`. |
+| `testFactoryMethodsAcceptUnknownSubtype` | Les fabriques ne valident pas le sous-type contre une liste de types connus. | `x-unknown-format`, un nom syntaxiquement valide qui ne correspond à aucun format réel. C'est exactement l'hypothèse fausse faite par les tests générés. | `parse()` n'accepte ou ne rejette une chaîne que sur sa syntaxe. Le nom est valide, donc le résultat attendu est `image/x-unknown-format`. |
+| `testFactoryMethodsReturnNullForInvalidSubtype` | Un sous-type qui rend la chaîne complète invalide donne `null`. | Deux cas limites : le sous-type vide (`text/`) et un sous-type contenant une barre oblique (`text/a/b`). | La Javadoc de `parse()` indique que la méthode retourne `null` si l'analyse échoue. Un sous-type vide ou une deuxième barre oblique ne correspondent à aucun des motifs acceptés. |
+
+#### `set()`
+
+| Test | Intention | Données et motivation | Oracle |
+|---|---|---|---|
+| `testSetOfTypesSkipsNullsAndDuplicates` | `set(MediaType...)` ignore les valeurs nulles et ne garde qu'un exemplaire de chaque type. | Quatre arguments : deux types différents, une valeur `null` et un doublon du premier. Ils couvrent en un appel les deux branches du test `type != null`. | Le code n'ajoute que les types non nuls à un `HashSet`. On attend donc une taille de 2 et la présence des deux types. Vérifier la taille seule ne suffirait pas à détecter un ensemble contenant de mauvais éléments. |
+| `testSetOfStringsSkipsUnparseableEntries` | `set(String...)` ignore les chaînes qui ne peuvent pas être analysées. | Deux chaînes valides, une chaîne invalide (`not a media type`) et `null`. Les deux dernières donnent `null` dans `parse()`, pour deux raisons différentes. | Le code n'ajoute un type que si `parse()` ne retourne pas `null`. On attend donc 2 éléments, égaux aux types `text/plain` et `image/png`. |
+| `testSetIsUnmodifiable` | Les deux variantes retournent un ensemble que l'appelant ne peut pas modifier. | Un ensemble d'un élément pour chaque variante, auquel on tente d'ajouter un type. | La Javadoc des deux méthodes promet un ensemble non modifiable (« unmodifiable set »). On attend une `UnsupportedOperationException`. |
+
+#### `parse()` : entrées rejetées
+
+| Test | Intention | Données et motivation | Oracle |
+|---|---|---|---|
+| `testParseNullReturnsNull` | `parse(null)` retourne `null` au lieu de lancer une exception. | `null`, la valeur limite la plus évidente. Les tests générés supposaient ici une `IllegalArgumentException`. | Première ligne de `parse()` : `if (string == null) return null`. |
+| `testParseWithoutSlashReturnsNull` | Une chaîne sans barre oblique n'est pas un type de média. | `text` (un seul nom) et la chaîne vide. | Le code retourne `null` quand `indexOf('/')` vaut -1, et aucun des deux motifs généraux n'accepte une chaîne sans barre oblique. |
+| `testParseEmptyTypeOrSubtypeReturnsNull` | Un type ou un sous-type vide est rejeté. | Les trois combinaisons : type vide (`/plain`), sous-type vide (`text/`), les deux vides (`/`). Ce sont les seules entrées qui atteignent la dernière ligne de `isSimpleName()` avec un nom vide. | `isSimpleName()` se termine par `return name.length() > 0` : un nom vide n'est pas simple. Le motif général exige ensuite au moins un caractère de chaque côté de la barre. Le résultat attendu est donc `null`. |
+| `testParseReservedCharacterReturnsNull` | Un caractère réservé dans un nom fait échouer l'analyse. | Un deux-points (`te:xt/plain`), un espace à l'intérieur d'un nom (`text/pl ain`) et une seconde barre oblique (`text/plain/extra`). Ces trois caractères font partie de ceux qu'exclut l'expression `VALID_CHARS`. | La Javadoc renvoie à la RFC 2045, et `VALID_CHARS` exclut ces caractères. Aucun motif ne correspond, donc `parse()` retourne `null`. |
+
+#### `parse()` : noms simples et cache
+
+| Test | Intention | Données et motivation | Oracle |
+|---|---|---|---|
+| `testParseSimpleTypeIsCached` | Un type composé de noms simples est mis en cache. | Un type `x-manual/<nom>` dont le nom n'a jamais été analysé (méthode `neverParsedName()`), pour que `isSimpleName()` soit réellement appelée à chaque exécution. | Pour un nom simple, `parse()` crée l'objet puis le range dans `SIMPLE_TYPES`. Deux appels avec la même chaîne doivent donc retourner le même objet (`assertSame`). La chaîne est aussi comparée à `toString()`. |
+| `testParseSimpleNameBoundaryCharacters` | Les caractères situés aux bornes des intervalles acceptés sont bien des caractères simples. | Sept types construits avec les bornes des intervalles de `isSimpleName()` : chiffres `0` et `9`, lettres `a` et `z`, et les quatre symboles `-`, `+`, `.`, `_`. Ce sont les valeurs qu'un mutant de limite (`<=` devenu `<`) traiterait différemment. | `isSimpleName()` accepte `'0' <= c <= '9'`, `'a' <= c <= 'z'` et les quatre symboles. Ces noms sont donc simples, et le type doit être mis en cache : même objet au second appel. |
+| `testParseStopsCachingAtLimit` | Le cache cesse d'accepter de nouveaux types quand il contient 10 000 entrées. | Le cache est rempli jusqu'à 9 999 entrées, juste sous la limite, puis deux nouveaux types sont analysés : le premier amène le cache à exactement 10 000, le second arrive quand la limite est atteinte. Ce sont les deux valeurs de part et d'autre de la borne. | La condition du code est `SIMPLE_TYPES.size() < 10000`. À 9 999, le type est mis en cache (même objet, taille 10 000). À 10 000, il ne l'est plus : deux appels donnent deux objets égaux mais distincts, et la taille reste 10 000. |
+| `testParseNonSimpleNameIsNotCached` | Les caractères juste à l'extérieur des intervalles ne sont pas simples, mais restent valides. | L'accent grave et l'accolade ouvrante, qui précèdent `a` et suivent `z` dans la table ASCII, placés dans le type puis dans le sous-type. S'y ajoute un type en majuscules (`TEXT/Manual`). | Ces caractères ne sont pas dans les intervalles de `isSimpleName()`, mais `VALID_CHARS` les accepte. Le type est donc créé par le motif général, sans être mis en cache : deux appels donnent deux objets égaux mais distincts. Pour les majuscules, le constructeur convertit en minuscules, d'où `text/manual`. |
+
+#### `parse()` : cas général
+
+| Test | Intention | Données et motivation | Oracle |
+|---|---|---|---|
+| `testParseTrimsWhitespaceAroundNames` | Les espaces autour du type et du sous-type sont ignorés. | Une chaîne avec des espaces avant, après et autour de la barre oblique (`  text / plain  `). | Le motif `TYPE_PATTERN` autorise des espaces (`\s*`) à ces quatre endroits, et le constructeur applique `trim()`. Le résultat attendu est `text/plain`. |
+| `testParseCharsetFirst` | Le jeu de caractères peut précéder le type (TIKA-350). | `charset=UTF-8; text/html`, la forme citée dans la Javadoc pour les serveurs web mal configurés. Aucun test existant n'atteignait cette branche. | La Javadoc de `parse()` indique que cette forme est acceptée. Le code construit le type à partir des groupes 2 et 3 du motif et le paramètre à partir du groupe 1. On vérifie la forme normalisée, le type, le sous-type et la table des paramètres. |
+
+#### Constructeurs dérivés
+
+| Test | Intention | Données et motivation | Oracle |
+|---|---|---|---|
+| `testDerivedTypeAddsParametersToPlainType` | Ajouter des paramètres à un type qui n'en a pas. | `text/plain` sans paramètre et une table d'un paramètre. C'est la première branche de `union()` (première table vide). | `union()` retourne la seconde table quand la première est vide. Le résultat attendu est `text/plain; charset=UTF-8`. |
+| `testDerivedTypeKeepsParametersWhenNoneAdded` | Dériver un type sans ajouter de paramètre conserve ceux du type de base. | Un type avec un paramètre et une table vide. C'est la deuxième branche de `union()` (seconde table vide). | `union()` retourne la première table quand la seconde est vide. Le type obtenu doit avoir la même forme textuelle et être égal au type de base. |
+| `testDerivedTypeMergesAndOverridesParameters` | Les paramètres des deux côtés sont fusionnés, et la nouvelle valeur remplace l'ancienne pour un même nom. | Un type de base avec `charset` et `format`, et une table qui redéfinit `charset` et ajoute `delsp`. Le nom en commun permet de vérifier lequel des deux `putAll` est appliqué en dernier. | `union()` copie la première table puis la seconde : la seconde l'emporte. Le constructeur trie ensuite les noms. On attend `charset=ISO-8859-1; delsp=yes; format=flowed` et 3 paramètres. |
+| `testDerivedTypeWithSingleParameter` | Le constructeur `(type, nom, valeur)` ajoute un paramètre. | `text/plain` avec `format=flowed`. | La Javadoc indique que ce constructeur crée un type en ajoutant un paramètre au type de base. Résultat attendu : `text/plain; format=flowed`. |
+| `testDerivedTypeWithCharset` | Le constructeur `(type, Charset)` ajoute le paramètre `charset`. | `text/html` avec `ISO_8859_1`, un jeu de caractères différent de l'UTF-8 utilisé ailleurs, pour ne pas réussir par coïncidence. | La Javadoc indique que ce constructeur ajoute le paramètre `charset`, et le code utilise `charset.name()`. Résultat attendu : `text/html; charset=ISO-8859-1`. |
+
+#### Accesseurs
+
+| Test | Intention | Données et motivation | Oracle |
+|---|---|---|---|
+| `testGetTypeAndSubtype` | `getType()` et `getSubtype()` excluent la barre oblique et les paramètres. | Un type sans paramètre dont le sous-type contient des points et un tiret (`application/vnd.ms-excel`), et un type avec paramètre. Le second vérifie que le sous-type s'arrête au point-virgule. | La Javadoc donne l'exemple : `text` et `plain` pour `text/plain`. Le code découpe la chaîne aux indices `slash` et `semicolon`. |
+| `testGetBaseTypeWithoutParametersReturnsSameInstance` | Sans paramètre, `getBaseType()` retourne l'objet lui-même. | `image/png`, un type sans paramètre. | Première branche du code : `if (parameters.isEmpty()) return this`. On vérifie l'identité avec `assertSame`. |
+| `testGetBaseTypeDropsParameters` | Avec paramètres, `getBaseType()` retourne le type sans ses paramètres. | `text/plain; charset=UTF-8`, l'exemple de la Javadoc. | La Javadoc donne `text/plain` pour `text/plain; charset=utf-8`. On vérifie l'égalité avec `TEXT_PLAIN`, la forme textuelle et l'absence de paramètres. |
+| `testHasParameters` | `hasParameters()` distingue un type avec paramètres d'un type sans paramètre. | Un type sans paramètre et un type avec un paramètre : les deux valeurs possibles du résultat. Contrairement aux tests générés, la méthode est appelée sur de vrais objets. | La Javadoc indique `true` si le type a un ou plusieurs paramètres, `false` sinon. |
+| `testGetParametersIsSortedAndUnmodifiable` | Les noms de paramètres sont en minuscules et triés, et la table est en lecture seule. | Trois noms donnés dans le désordre et avec des majuscules (`Zeta`, `alpha`, `Mid`). L'ordre d'insertion diffère de l'ordre alphabétique, pour distinguer un tri réel d'un ordre conservé par hasard. | La Javadoc promet une table triée et immuable, avec des noms en minuscules. On attend l'ordre `alpha`, `mid`, `zeta`, et une `UnsupportedOperationException` à l'écriture, pour un type avec paramètres et pour un type sans paramètre. |
+
+#### `equals()`, `hashCode()` et `compareTo()`
+
+| Test | Intention | Données et motivation | Oracle |
+|---|---|---|---|
+| `testEqualsComparesNormalizedForm` | Deux types sont égaux quand leur forme normalisée est la même, quelle que soit la façon de les construire. | Le même type obtenu par `parse()` et par le constructeur, ce dernier avec des majuscules et des espaces. On teste l'égalité dans les deux sens et avec lui-même. | `equals()` compare les chaînes internes, que le constructeur normalise (minuscules, espaces retirés). Les deux objets doivent donc être égaux. |
+| `testEqualsDetectsDifferences` | Toute différence de type, de sous-type ou de paramètre rend deux types inégaux. | Quatre types qui ne diffèrent du type de référence que par un seul élément : absence de paramètre, sous-type, valeur du paramètre, casse de la valeur. | `equals()` compare des chaînes : la moindre différence donne `false`. Le constructeur ne met en minuscules que les noms des paramètres, pas leurs valeurs, d'où l'inégalité entre `UTF-8` et `utf-8`. |
+| `testEqualsRejectsNullAndOtherClasses` | `equals()` retourne `false` pour `null` et pour un objet d'une autre classe. | `null` et la chaîne `"text/plain"`, dont le contenu est identique à la forme textuelle du type. Une comparaison fondée sur `toString()` serait ainsi détectée. | Le code retourne `false` quand l'argument n'est pas une instance de `MediaType`. C'est aussi ce qu'exige le contrat de `Object.equals()`. |
+| `testHashCodeIsConsistentWithEquals` | Deux types égaux ont le même code de hachage, et le code dépend du contenu. | Deux types égaux construits différemment, puis deux types différents (`text/plain` et `text/html`). Le second couple détecte un `hashCode()` constant. | Le contrat de `Object.hashCode()` impose le même code pour deux objets égaux. Le code retourne `string.hashCode()`, qui diffère pour ces deux chaînes. |
+| `testCompareToOrdersByStringForm` | `compareTo()` ordonne les types selon leur forme textuelle. | `application/pdf` et `text/plain`, comparés dans les deux sens, puis deux types égaux, puis un type et sa variante avec paramètre. | Le code retourne `string.compareTo(that.string)`. Le contrat de `Comparable` ne fixe que le signe du résultat, donc on vérifie `< 0`, `> 0` et `== 0`, jamais une valeur exacte comme `-1`. |
+| `testCompareToNullThrows` | Comparer avec `null` lance une `NullPointerException`. | `null`. | Le contrat de `Comparable.compareTo()` demande une `NullPointerException` pour `null`, et le code accède à `that.string`. |
+
+### Résultats
+
+| Mesure (PIT, classe `MediaType`) | `MediaTypeTest` seul | Avec `MediaTypeManualTest` |
+|---|---:|---:|
+| Tests | 9 | 41 |
+| Couverture de lignes | 107/157 (68 %) | 157/157 (100 %) |
+| Mutants tués | 50/85 (59 %) | 85/85 (100 %) |
+| Mutants non couverts | 33 | 0 |
+| Mutants survivants | 2 | 0 |
+
+Nous avons confirmé le résultat des tests manuels de deux façons : cinq exécutions complètes de PIT donnent toutes 85 mutants tués sur 85, et PIT relancé séparément pour chacune des neuf familles de mutateurs tue aussi tous les mutants de chaque famille.
+
+Les 32 tests réussissent, et le module ne présente aucune violation Checkstyle. Avec les tests d'origine et les tests générés corrigés, la classe `MediaType` est maintenant vérifiée par 136 tests, qui réussissent tous : 9 d'origine, 95 générés puis corrigés, et 32 écrits à la main. Pour que PIT prenne en compte les nouveaux tests, `<targetTests>` dans `tika-core/pom.xml` contient `MediaTypeTest`, `MediaType_*` et `MediaTypeManualTest`. Dans cette configuration, PIT tue les 85 mutants.
+
+Les mesures se reproduisent avec :
+
+```
+.\mvnw.cmd -pl tika-core -am test "-Dtest=MediaTypeManualTest,MediaTypeTest" "-Dsurefire.failIfNoSpecifiedTests=false"
+.\mvnw.cmd -pl tika-core test-compile org.pitest:pitest-maven:mutationCoverage
+```
+
+### Difficulté rencontrée : le cache statique de `parse()`
+
+Les deux mutants survivants se trouvent dans le chemin rapide de `parse()`, qui appelle `isSimpleName()`. Ce chemin n'a qu'un seul effet observable : un type simple est rangé dans un cache statique, de sorte que deux appels de `parse()` avec la même chaîne retournent le même objet. Notre premier test vérifiait cela avec une chaîne fixe (`assertSame` sur deux appels), et les deux mutants survivaient quand même.
+
+La cause est que PIT exécute les mutants dans une même machine virtuelle. Dès la première exécution du test, la chaîne fixe entre dans le cache; aux exécutions suivantes, `parse()` la retrouve dans le cache et ne rappelle plus `isSimpleName()`. Le mutant n'est donc jamais exercé. Nous avons corrigé le test pour qu'il utilise à chaque exécution un nom jamais analysé auparavant (méthode `neverParsedName()`), après quoi les deux mutants sont tués.
+
+Cette difficulté illustre un piège général : un test qui dépend d'un état statique peut réussir pour une raison étrangère à ce qu'il prétend vérifier, et seul le test de mutation nous l'a révélé.
+
+### Écart avec le rapport PIT initial
+
+Le rapport PIT initial, cité au début de ce document, indique 46 mutants tués et 6 survivants pour les tests d'origine. Nos mesures donnent 50 mutants tués et 2 survivants avec les mêmes tests, le même code et la même configuration. Le rapport initial a été produit sur une autre machine. Le score de PIT pour cette classe n'est donc pas parfaitement reproductible d'une machine à l'autre, et les chiffres de ce document sont à comparer entre eux plutôt qu'avec le rapport initial.
+
+Pour cette raison, nous n'avons pas retenu le seul chiffre affiché par PIT pour les tests manuels : nous l'avons revérifié famille de mutateurs par famille de mutateurs, comme indiqué dans la section « Résultats ». Cette vérification a révélé qu'un mutant, celui de la limite du cache à la ligne 258 de `parse()`, était compté comme tué sans l'être réellement. Nous avons ajouté le test `testParseStopsCachingAtLimit` pour le tuer.
+
+### Limites
+
+- Le score de mutation porte sur les mutants que PIT génère avec ses mutateurs par défaut. Il ne prouve pas l'absence de défaut dans `MediaType`.
+- Les tests du cache vérifient un détail d'implémentation (l'identité des objets retournés), et non un comportement promis par la Javadoc. Ils devraient être revus si le cache était retiré ou modifié.
+- Le test de la limite du cache (`testParseStopsCachingAtLimit`) accède par réflexion au champ privé `SIMPLE_TYPES` pour remplir le cache jusqu'à 10 000 entrées, puis le remet dans son état d'origine. C'est le seul moyen d'atteindre cette limite sans perturber les autres tests, mais le test dépend du nom et du type de ce champ privé.
+
+## Comparaison des oracles : tests générés et tests écrits à la main
+
+Un oracle est la partie d'un test qui décide si le comportement observé est correct : ici, les assertions. Nous comparons les oracles produits par ChatUniTest à ceux écrits à la main, c'est-à-dire ceux de `MediaTypeTest` (tests d'origine de Tika) et de `MediaTypeManualTest` (nos tests), selon trois critères : la pertinence, la spécificité et la présence de vérifications triviales.
+
+### Vue d'ensemble
+
+| Type d'assertion | Tests générés (8 classes) | `MediaTypeTest` | `MediaTypeManualTest` |
+|---|---:|---:|---:|
+| `assertEquals` | 42 | 28 | 41 |
+| `assertNull` | 23 | 0 | 11 |
+| `assertNotNull` | 7 | 11 | 0 |
+| `assertTrue` / `assertFalse` | 21 | 1 | 12 |
+| `assertThrows` | 4 | 0 | 5 |
+| `assertSame` / `assertNotSame` / `assertNotEquals` | 0 | 0 | 12 |
+
+Les tests générés contiennent autant d'assertions que les tests manuels, mais le nombre ne dit rien de leur valeur : sur les 95 tests générés, 67 échouent parce que leur oracle est faux ou ne s'exécute pas.
+
+### Pertinence : l'oracle correspond-il au comportement réel ?
+
+C'est la différence la plus nette. Les oracles manuels sont déduits du code et de la Javadoc; ceux de l'IA sont déduits de ce que le nom de la méthode laisse supposer.
+
+| Comportement | Oracle généré par l'IA | Oracle écrit à la main |
+|---|---|---|
+| Sous-type inconnu | `assertNull(MediaType.image("invalid"))` : faux, la classe ne valide pas les sous-types. | `assertEquals("image/x-unknown-format", MediaType.image("x-unknown-format").toString())` |
+| `parse(null)` | `assertThrows(IllegalArgumentException.class, () -> mediaType.parse(null))` : faux, la méthode retourne `null`. | `assertNull(MediaType.parse(null))` |
+| Ordre de deux types | `assertEquals(-1, mediaType1.compareTo(mediaType3))` : faux, le résultat est 19. | `assertTrue(pdf.compareTo(plain) < 0)` : seul le signe est garanti par le contrat. |
+| Valeur d'un paramètre | `assertEquals("charset=utf-8", imageType.getParameters().get("charset"))` : confond la valeur et le couple nom=valeur. | `assertEquals(Collections.singletonMap("charset", "UTF-8"), type.getParameters())` |
+| Présence de paramètres | `when(mockMediaType.getParameters()).thenReturn(parameters); assertTrue(mockMediaType.hasParameters())` : l'oracle porte sur un mock. | `assertTrue(MediaType.parse("text/plain; charset=UTF-8").hasParameters())` |
+
+Les oracles de l'IA ne sont pas tous faux : ceux de `MediaType_equals_18_1_Test` sont corrects et proches de ce que nous avons écrit pour `equals()`. Ils restent toutefois moins complets, car ils ne vérifient ni `null` ni un objet d'une autre classe.
+
+### Spécificité : l'oracle distingue-t-il le bon résultat d'un résultat voisin ?
+
+Un oracle spécifique échoue dès que le résultat s'écarte de la valeur attendue.
+
+- __Les oracles manuels comparent des valeurs exactes.__ Par exemple, `testDerivedTypeMergesAndOverridesParameters` attend la chaîne complète `text/plain; charset=ISO-8859-1; delsp=yes; format=flowed`, ce qui vérifie à la fois la fusion, le remplacement et le tri des paramètres. Les tests du cache utilisent `assertSame` et `assertNotSame`, qui distinguent deux objets égaux de deux fois le même objet. Aucun oracle généré ne vérifie l'identité d'un objet, alors que c'est le seul moyen d'observer le chemin rapide de `parse()`.
+- __Les oracles générés sont spécifiques dans quelques cas seulement.__ `testImageMethod` compare quatre valeurs exactes, et c'est le test généré qui détecte le plus de mutants à lui seul (7). À l'inverse, `MediaType_text_3_1_Test` n'utilise que `assertNull` dans ses 11 tests : il ne peut pas distinguer un rejet pour la bonne raison d'un rejet pour une autre raison, et c'est précisément ce qui s'y produit.
+- __L'analyse de mutation confirme cet écart.__ Les tests générés qui réussissent détectent 38 mutants sur 85, et laissent survivre les mutants qui remplacent le retour de `text()` et de `application()` par `null`, puisque leurs oracles attendent déjà `null`. Les tests manuels, ajoutés aux tests d'origine, détectent les 85 mutants.
+
+### Vérifications triviales
+
+Une vérification triviale réussit presque quel que soit le comportement du code.
+
+- __Dans les tests générés__, les plus fréquentes sont `assertNotNull(mediaType)` placé avant des assertions plus précises (7 occurrences), et surtout les assertions sur un mock : dans `MediaType_hasParameters_15_3_Test`, les 10 tests vérifient une valeur fournie par Mockito, et non par `MediaType`. Ces assertions ne peuvent révéler aucun défaut de la classe testée. S'y ajoute la répétition : 6 tests de `text()` appliquent le même oracle à la même entrée.
+- __Les tests d'origine en contiennent aussi.__ `MediaTypeTest` compte 11 `assertNotNull`, dont plusieurs sur des valeurs qui ne peuvent pas être nulles, comme `assertNotNull(type.getParameters().keySet())`. Le test `testParseWithParams` vérifie que trois noms de paramètres sont présents, mais pas leurs valeurs. Un oracle écrit à la main n'est donc pas précis par nature.
+- __Dans nos tests manuels__, nous n'avons gardé aucun `assertNotNull`. Quand un résultat non nul est attendu, il est comparé directement à sa valeur, ce qui échoue aussi sur une valeur nulle.
+
+### Bilan de la comparaison
+
+| Critère | Oracles générés par l'IA | Oracles écrits à la main |
+|---|---|---|
+| Pertinence | Souvent faux : ils reflètent un comportement supposé (validation, exceptions, valeurs exactes de `compareTo()`). Corrects pour `equals()`. | Déduits du code et de la Javadoc; tous réussissent. |
+| Spécificité | Inégale : précise dans `testImageMethod`, faible ailleurs (`assertNull` seul). | Élevée dans nos tests (valeurs exactes, identité des objets); moyenne dans `MediaTypeTest`. |
+| Vérifications triviales | Fréquentes : `assertNotNull`, assertions sur des mocks, oracles dupliqués. | Absentes de nos tests; présentes dans `MediaTypeTest` (`assertNotNull`). |
+| Mutants détectés | 38/85 pour les tests générés qui réussissent. | 50/85 pour `MediaTypeTest`, 85/85 avec `MediaTypeManualTest`. |
+
+L'IA produit vite des oracles dont la forme est correcte, mais elle ne connaît pas le comportement réel de la classe : elle écrit ce que la méthode devrait faire d'après son nom. Un oracle écrit à la main demande de lire le code ou sa documentation, et c'est cette étape qui le rend pertinent. La comparaison avec `MediaTypeTest` montre aussi que cette lecture ne suffit pas : c'est l'analyse de mutation qui révèle si un oracle, humain ou généré, vérifie réellement quelque chose.
 
 [^1]: `tika-core/src/test/java/org/apache/tika/mime/MediaTypeTest.java`
 [^2]: `tika-core/target/site/jacoco/org.apache.tika.mime/index.html`
