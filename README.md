@@ -226,7 +226,7 @@ __4. Des tests réussissent sans rien démontrer.__ Les 11 tests de `MediaType_t
 
 __5. Les tests sont redondants et mal nommés.__ Dans `MediaType_text_3_1_Test`, 6 des 11 tests utilisent exactement la même entrée sous des noms différents (`...InvalidKeyAndValue`, `...InvalidKeyAndValue2`, `...3`, `...4`). Dans `MediaType_equals_18_1_Test`, 9 des 11 tests vérifient la même propriété (deux objets différents ne sont pas égaux) avec des combinaisons très proches, et `testEqualsWithDifferentOrderOfParameters` n'échange pas l'ordre des paramètres : il inverse la clé et la valeur. Le nombre de tests donne donc une fausse impression de couverture.
 
-__6. Les tests ne visent pas l'objectif de la tâche.__ Les mutants survivants se trouvent dans `isSimpleName()`, accessible par `parse()`. Les tuer demande des entrées aux limites des caractères acceptés (par exemple une majuscule, un espace, ou les caractères `-`, `+`, `.` et `_`). Aucun test généré ne cible ces limites de façon délibérée, et la seule classe consacrée à `parse()` ne s'exécute pas. L'analyse de mutation le confirme : les mutants du chemin du cache de `parse()` et de `isSimpleName()` survivent encore avec les tests générés (voir « Analyse de mutation »).
+__6. Les tests ne visent pas l'objectif de la tâche.__ Les mutants survivants se trouvent dans `isSimpleName()`, accessible par `parse()`. Les tuer demande des entrées aux limites des caractères acceptés (par exemple une majuscule, un espace, ou les caractères `-`, `+`, `.` et `_`). Aucun test généré ne cible ces limites de façon délibérée, et la seule classe consacrée à `parse()` ne s'exécute pas. L'analyse de mutation nuance toutefois ce constat : ajoutés aux tests d'origine, les tests générés détectent 4 de ces 6 mutants, sans les viser, parce que plusieurs tests attendent `null` pour une chaîne mal formée. Les 2 mutants qui restent sont justement ceux qui demandent des entrées aux limites (voir « Analyse de mutation »).
 
 #### Points positifs
 
@@ -249,44 +249,44 @@ Nous avons exécuté PIT sur `MediaType` avec les tests d'origine, puis avec les
 
 | Tests utilisés | Mutants tués | Non couverts | Survivants | Couverture de lignes |
 |---|---:|---:|---:|---:|
-| Tests d'origine (`MediaTypeTest`) | 50/85 (59 %) | 33 | 2 | 107/157 (68 %) |
-| Tests générés seuls | 38/85 (45 %) | 37 | 10 | 75/157 (48 %) |
-| Tests d'origine + tests générés | 57/85 (67 %) | 20 | 8 | 120/157 (76 %) |
-| Tests générés corrigés seuls | 63/85 (74 %) | 16 | 6 | 125/157 (80 %) |
-| Tests d'origine + tests générés corrigés | 66/85 (78 %) | 16 | 3 | 125/157 (80 %) |
-| Tests d'origine + tests générés corrigés + tests manuels | 85/85 (100 %) | 0 | 0 | 157/157 (100 %) |
+| Tests d'origine (`MediaTypeTest`) | 46/85 (54 %) | 33 | 6 | 106/156 (68 %) |
+| Tests générés seuls | 38/85 (45 %) | 38 | 9 | 76/156 (49 %) |
+| Tests d'origine + tests générés | 59/85 (69 %) | 21 | 5 | 119/156 (76 %) |
+| Tests générés corrigés seuls | 65/85 (76 %) | 16 | 4 | 124/156 (79 %) |
+| Tests d'origine + tests générés corrigés | 65/85 (76 %) | 16 | 4 | 124/156 (79 %) |
+| Tests d'origine + tests générés corrigés + tests manuels | 84/85 (99 %) | 0 | 1 | 156/156 (100 %) |
 
-Les lignes « tests générés » portent sur la sortie brute de ChatUniTest, dont seuls les 28 tests qui réussissent sont pris en compte. Les lignes « tests générés corrigés » portent sur la version corrigée, dont les 95 tests réussissent (voir « Corrections du contenu des tests générés »).
+Les lignes « tests générés » portent sur la sortie brute de ChatUniTest, dont seuls les 28 tests qui réussissent sont pris en compte. Les lignes « tests générés corrigés » portent sur la version corrigée, dont les 95 tests réussissent (voir « Corrections du contenu des tests générés »). Le score des tests d'origine est celui du rapport PIT initial cité au début de ce document.
 
-__Les tests générés ne détectent donc pas tous les mutants.__ Seuls et sans correction, ils en détectent moins que les tests d'origine. Ajoutés aux tests d'origine, ils font passer le score de 59 % à 67 %, et 28 mutants restent non détectés. Même une fois corrigés, ils laissent 19 mutants non détectés avec les tests d'origine.
+__Les tests générés ne détectent donc pas tous les mutants.__ Seuls et sans correction, ils en détectent moins que les tests d'origine. Ajoutés aux tests d'origine, ils font passer le score de 54 % à 69 %, et 26 mutants restent non détectés. Même une fois corrigés, ils laissent 20 mutants non détectés.
 
 Conditions de mesure :
 
-- PIT refuse de démarrer si un test échoue. Comme 67 des 95 tests générés échouent, nous avons activé l'option `skipFailingTests` de PIT : seuls les 28 tests générés qui réussissent participent à l'analyse. Le contenu des tests générés n'a pas été modifié.
-- Pour la mesure sur la sortie brute, les 8 classes de `tika-core/chatunitest-tests/` ont été copiées temporairement dans `tika-core/src/test/java/org/apache/tika/mime/`, et `<targetTests>` a été réglé sur `org.apache.tika.mime.MediaType_*`. L'option `skipFailingTests` n'est pas nécessaire pour la version corrigée.
-- Deux des 38 mutants comptés comme tués par les tests générés ne le sont plus quand on relance PIT famille de mutateurs par famille de mutateurs (36 au lieu de 38). Le score de PIT sur cette classe varie légèrement d'une exécution à l'autre (voir « Écart avec le rapport PIT initial »).
+- Toutes les mesures sont faites sur une compilation propre par Maven (`clean` dans la même commande que PIT), comme dans la GitHub Action. Cette précaution est nécessaire : voir « Reproductibilité des mesures ».
+- PIT refuse de démarrer si un test échoue. Comme 67 des 95 tests générés bruts échouent, nous avons activé l'option `skipFailingTests` de PIT pour cette version : seuls les 28 tests qui réussissent participent à l'analyse. Cette option n'est pas nécessaire pour la version corrigée.
+- Pour la mesure sur la sortie brute, les 8 classes de `tika-core/chatunitest-tests/` ont été copiées temporairement dans `tika-core/src/test/java/org/apache/tika/mime/`, et `<targetTests>` a été réglé sur `org.apache.tika.mime.MediaType_*`.
 
 ### Mutants détectés par les tests générés, et pourquoi
 
-Les 38 mutants détectés se répartissent en quatre groupes.
+Les 38 mutants détectés par les tests générés bruts se répartissent en quatre groupes.
 
 | Groupe | Mutants détectés | Test qui les détecte | Pourquoi le mutant est détecté |
 |---|---:|---|---|
-| `isSimpleName()` et le chemin rapide de `parse()` | 26 | `MediaType_text_3_1_Test` (tests `testTextInvalidParameters...`), `MediaType_application_0_0_Test.testEmptyApplication` | Ces tests passent à `parse()` une chaîne qui n'est pas un nom simple, par exemple `text/text/plain; charset=utf-8; ...`, et attendent `null`. Un mutant qui rend `isSimpleName()` plus permissive (condition inversée, retour remplacé par `true`) fait accepter la chaîne : `parse()` retourne alors un objet, et `assertNull` échoue. |
+| `isSimpleName()` et le chemin rapide de `parse()` | 26 | `MediaType_text_3_1_Test` (tests `testTextInvalidParameters...` et `testTextAllWhitespaceType`), `MediaType_application_0_0_Test.testEmptyApplication` | Ces tests passent à `parse()` une chaîne qui n'est pas un nom simple, par exemple `text/text/plain; charset=utf-8; ...`, et attendent `null`. Un mutant qui rend `isSimpleName()` plus permissive (condition inversée, retour remplacé par `true`) fait accepter la chaîne : `parse()` retourne alors un objet, et `assertNull` échoue. |
 | Retours de `parse()`, de `image()` et de `audio()` | 4 | `MediaType_image_2_1_Test.testImageMethod`, `MediaType_audio_1_2_Test.testAudioMethod` | Ces tests appellent la méthode avec un sous-type valide (`jpeg`, `mp3`) et comparent le résultat à une valeur précise. Un mutant qui remplace le retour par `null`, ou qui inverse le test `string == null`, change ce résultat. |
 | Accesseurs `getType()`, `getSubtype()` et `toString()` | 4 | `MediaType_image_2_1_Test.testImageMethod` | Le test vérifie les trois valeurs exactes : `image`, `jpeg` et `image/jpeg`. Un retour remplacé par une chaîne vide, ou un indice décalé dans `getSubtype()` (`slash + 1` devenu `slash - 1`), donne une autre valeur. |
 | `equals()` et le constructeur | 4 | `MediaType_equals_18_1_Test` | Les tests vérifient à la fois des cas d'égalité (`assertTrue`) et d'inégalité (`assertFalse`). Un mutant qui force le retour à `true` ou à `false`, ou qui inverse le test `instanceof`, fait échouer l'un des deux. Le mutant du constructeur (test `parameters.isEmpty()` inversé) est détecté par un test qui compare deux types avec paramètres. |
 
 Deux observations :
 
-- __Une seule classe détecte la majorité des mutants.__ La plupart des 26 mutants du premier groupe sont détectés par des tests de `MediaType_text_3_1_Test`. Or nous avons vu que ces tests réussissent pour une mauvaise raison : la chaîne est rejetée à cause du préfixe `text/` en double, et non à cause du paramètre que le test croit invalide. Ils détectent quand même des mutants, parce qu'ils exercent le code qui rejette une chaîne mal formée. Un test peut donc être utile au score de mutation tout en vérifiant autre chose que ce que son nom annonce.
+- __Une seule classe détecte la majorité des mutants.__ Sur les 38 mutants détectés, 23 le sont par des tests de `MediaType_text_3_1_Test`. Or nous avons vu que ces tests réussissent pour une mauvaise raison : la chaîne est rejetée à cause du préfixe `text/` en double, et non à cause du paramètre que le test croit invalide. Ils détectent quand même des mutants, parce qu'ils exercent le code qui rejette une chaîne mal formée. Un test peut donc être utile au score de mutation tout en vérifiant autre chose que ce que son nom annonce.
 - __Les détections viennent des oracles précis.__ `testImageMethod` détecte 7 mutants à lui seul parce qu'il compare plusieurs valeurs exactes. À l'inverse, un test qui n'attend que `null` ne peut détecter aucun mutant qui remplace un retour par `null`.
 
 ### Mutants non détectés par les tests générés
 
-Sur les 47 mutants que les tests générés ne détectent pas, 37 se trouvent dans du code qu'aucun test généré réussi n'exécute, et 10 survivent.
+Sur les 47 mutants que les tests générés bruts ne détectent pas, 38 se trouvent dans du code qu'aucun test généré réussi n'exécute, et 9 survivent.
 
-__Mutants non couverts (37).__
+__Mutants non couverts (38).__
 
 | Méthode | Mutants | Raison |
 |---|---:|---|
@@ -294,9 +294,9 @@ __Mutants non couverts (37).__
 | `union()` | 7 | Aucun test généré n'utilise les constructeurs qui dérivent un type d'un autre. |
 | `set()`, `getBaseType()`, `video()`, `hashCode()` | 9 | ChatUniTest n'a produit aucune classe de test pour ces méthodes. |
 | `hasParameters()` | 2 | `MediaType_hasParameters_15_3_Test` contient 10 tests, mais ils appellent la méthode sur un mock : le code réel n'est jamais exécuté. |
-| `parse()`, `equals()` | 3 | Branches non atteintes : deux retours de `parse()` pour des chaînes qui ne sont pas des noms simples, et la comparaison avec un objet d'une autre classe. |
+| `parse()`, `equals()` | 4 | Branches non atteintes : trois retours de `parse()` (chaîne sans barre oblique, type analysé par le motif général, jeu de caractères avant le type) et la comparaison avec un objet d'une autre classe. |
 
-__Mutants survivants (10).__
+__Mutants survivants (9).__
 
 | Mutant | Raison de la survie |
 |---|---|
@@ -304,25 +304,30 @@ __Mutants survivants (10).__
 | `compareTo()` : retour remplacé par `0` (1) | Les deux tests réussis vérifient l'égalité (résultat `0`) et l'exception sur `null`. Aucun ne vérifie un ordre. |
 | `getParameters()` : retour remplacé par une table vide (1) | Le seul test réussi qui lit les paramètres attend justement une table vide. |
 | Constructeur : calcul des indices et mise entre guillemets (3) | Les tests qui utilisent le constructeur ne vérifient que `equals()`, jamais `getType()`, `getSubtype()` ou la forme textuelle d'un paramètre. |
-| `parse()` et `isSimpleName()` : chemin rapide (3) | Ces mutants ne changent que la mise en cache des types simples ou le traitement des types avec paramètres, qu'aucun test généré réussi n'observe. |
+| `parse()` et `isSimpleName()` : chemin rapide (2) | Ces mutants ne changent que la mise en cache des types simples ou le traitement des types avec paramètres, qu'aucun test généré réussi n'observe. |
 
 ### Apport des tests générés aux tests d'origine
 
-Ajoutés aux tests d'origine, les tests générés détectent 10 mutants que `MediaTypeTest` ne couvrait pas : les retours de `audio()` et de `image()`, `getType()`, les deux mutants de `getSubtype()`, les trois mutants de `equals()`, la dernière ligne de `isSimpleName()` (nom vide) et une branche de `parse()`. Le score net passe de 50 à 57, et non à 60, à cause de la variation du score de PIT mentionnée plus haut.
+Ajoutés aux tests d'origine, les tests générés bruts détectent 13 mutants que `MediaTypeTest` ne détectait pas, et le score passe de 46 à 59 :
 
-Il reste 28 mutants non détectés avec les tests d'origine et les tests générés réunis : 20 non couverts (`union()`, `set()`, `getBaseType()`, `hasParameters()`, `video()`, `hashCode()`, une branche de `parse()` et une de `equals()`) et 8 survivants (`application()`, `text()`, `compareTo()`, et le chemin du cache de `parse()` et `isSimpleName()`). 
+- 4 des 6 mutants survivants de `isSimpleName()`, détectés par les tests qui attendent `null` pour une chaîne mal formée ou pour un nom vide;
+- 9 mutants non couverts : les retours de `audio()` et de `image()`, `getType()`, les deux mutants de `getSubtype()`, les trois mutants de `equals()` et une branche de `parse()`.
+
+Il reste 26 mutants non détectés avec les tests d'origine et les tests générés bruts réunis : 21 non couverts (`union()`, `set()`, `getBaseType()`, `hasParameters()`, `video()`, `hashCode()`, deux retours de `parse()` et une branche de `equals()`) et 5 survivants (`application()`, `text()`, `compareTo()`, et deux mutants de `isSimpleName()`).
+
 ### Effet de la correction des tests générés
 
-Une fois corrigés, les tests générés détectent 63 mutants au lieu de 38. Le gain vient surtout des classes qui ne s'exécutaient pas ou qui testaient un mock : `MediaType_parse_7_0_Test` couvre maintenant `parseParameters()` et `unquote()`, et `MediaType_hasParameters_15_3_Test` exécute enfin le code réel de `hasParameters()`.
+Une fois corrigés, les tests générés détectent 65 mutants au lieu de 38. Le gain vient surtout des classes qui ne s'exécutaient pas ou qui testaient un mock : `MediaType_parse_7_0_Test` couvre maintenant `parseParameters()` et `unquote()`, et `MediaType_hasParameters_15_3_Test` exécute enfin le code réel de `hasParameters()`. Les tests d'origine n'ajoutent alors plus rien : le score reste de 65 avec ou sans eux.
 
-Avec les tests d'origine et les tests générés corrigés réunis, 19 mutants restent non détectés :
+Avec les tests d'origine et les tests générés corrigés réunis, 20 mutants restent non détectés :
 
 | Mutants restants | Nombre | Raison |
 |---|---:|---|
 | `union()`, `set()`, `video()`, `hashCode()` | 13 | Non couverts : aucun test généré ne vise ces méthodes ni les constructeurs dérivés. |
-| `getBaseType()`, `parse()`, `equals()` | 3 | Non couverts : branches que les tests n'atteignent pas (jeu de caractères avant le type, comparaison avec un objet d'une autre classe, type sans paramètre). |
+| `getBaseType()`, `parse()`, `equals()` | 3 | Non couverts : branches que les tests n'atteignent pas (type sans paramètre, jeu de caractères avant le type, comparaison avec un objet d'une autre classe). |
 | `text()` : retour remplacé par `null` | 1 | Survivant : les 11 tests de `text()`, non modifiés, attendent tous `null`. |
-| `parse()` et `isSimpleName()` : chemin du cache | 2 | Survivants : aucun test n'observe la mise en cache des types simples. |
+| `isSimpleName()` : limite d'un intervalle et condition inversée | 2 | Survivants : ces mutants ne changent le résultat de `isSimpleName()` que pour certains caractères, et le seul effet visible est la mise en cache des types simples. Aucun test ne l'observe. |
+| `parse()` : `return null` de la ligne 257 | 1 | Survivant : mutant équivalent, impossible à détecter (voir « Mutant équivalent »). |
 
 Ce sont ces mutants que visent les tests écrits à la main, décrits dans la section suivante.
 
@@ -336,7 +341,7 @@ Elle contient 32 tests JUnit 5. Les tests d'origine (`MediaTypeTest`, 9 tests) n
 
 ### Démarche
 
-Les tests ont été conçus à partir des rapports de mutation PIT, et non à partir de la seule couverture de lignes. L'analyse de mutation montre que les tests générés ne détectent pas tous les mutants : avec les tests d'origine, il en reste 28 non détectés pour la sortie brute, et 19 après correction. Nous avons écrit les tests manuels pour qu'ils complètent les tests d'origine sans dépendre des tests générés : ils visent les 35 mutants que `MediaTypeTest` seul ne détecte pas (33 non couverts et 2 survivants), ce qui couvre aussi les mutants que les tests générés laissent passer. Pour chacun de ces mutants, nous avons lu le code visé, déterminé le comportement attendu, puis écrit un test dont l'assertion échoue si ce comportement change. Chaque résultat attendu vient du code de `MediaType`[^6] et de sa Javadoc, pas d'une supposition.
+Les tests ont été conçus à partir des rapports de mutation PIT, et non à partir de la seule couverture de lignes. L'analyse de mutation montre que les tests générés ne détectent pas tous les mutants : avec les tests d'origine, il en reste 26 non détectés pour la sortie brute, et 20 après correction. Nous avons écrit les tests manuels pour qu'ils complètent les tests d'origine sans dépendre des tests générés : ils visent les 39 mutants que `MediaTypeTest` seul ne détecte pas (33 non couverts et 6 survivants), ce qui couvre aussi les mutants que les tests générés laissent passer. Pour chacun de ces mutants, nous avons lu le code visé, déterminé le comportement attendu, puis écrit un test dont l'assertion échoue si ce comportement change. Chaque résultat attendu vient du code de `MediaType`[^6] et de sa Javadoc, pas d'une supposition.
 
 ### Ce que les tests vérifient
 
@@ -345,7 +350,7 @@ Les tests ont été conçus à partir des rapports de mutation PIT, et non à pa
 | Méthodes de fabrique | 3 | `application()`, `audio()`, `image()`, `text()` et `video()` ajoutent leur préfixe au sous-type; un sous-type inconnu est accepté; un sous-type invalide donne `null` | Retour remplacé par `null` (5 mutants non couverts) |
 | `set()` | 3 | Les deux variantes ignorent les valeurs nulles ou non analysables, fusionnent les doublons et retournent un ensemble non modifiable | Condition inversée, retour remplacé par un ensemble vide |
 | `parse()` : entrées rejetées | 4 | `null`, absence de barre oblique, type ou sous-type vide, caractère réservé | Dernière ligne de `isSimpleName()` |
-| `parse()` : noms simples | 4 | Un type simple est mis en cache; les caractères aux limites (`0`, `9`, `a`, `z`, `-`, `+`, `.`, `_`) sont simples; ceux juste à l'extérieur (`` ` ``, `{`, majuscules) ne le sont pas; le cache cesse d'accepter de nouveaux types à 10 000 entrées | Les 2 mutants survivants de `parse()` et `isSimpleName()` |
+| `parse()` : noms simples | 4 | Un type simple est mis en cache; les caractères aux limites (`0`, `9`, `a`, `z`, `-`, `+`, `.`, `_`) sont simples; ceux juste à l'extérieur (`` ` ``, `{`, majuscules) ne le sont pas; le cache cesse d'accepter de nouveaux types à 10 000 entrées | Les 6 mutants survivants de `isSimpleName()` et la limite du cache |
 | `parse()` : cas général | 2 | Espaces autour des noms; jeu de caractères placé avant le type (TIKA-350) | Branche `CHARSET_FIRST_PATTERN` |
 | Constructeurs dérivés | 5 | Ajout, conservation, fusion et remplacement de paramètres; variantes avec un seul paramètre et avec un `Charset` | Les 7 mutants de `union()` |
 | Accesseurs | 5 | `getType()`, `getSubtype()`, `getBaseType()`, `hasParameters()`; paramètres triés, en minuscules et non modifiables | Retours remplacés, addition remplacée par une soustraction |
@@ -432,41 +437,84 @@ Pour chacun des 32 tests, les tableaux suivants donnent son nom, son intention (
 | Mesure (PIT, classe `MediaType`) | `MediaTypeTest` seul | Avec `MediaTypeManualTest` |
 |---|---:|---:|
 | Tests | 9 | 41 |
-| Couverture de lignes | 107/157 (68 %) | 157/157 (100 %) |
-| Mutants tués | 50/85 (59 %) | 85/85 (100 %) |
+| Couverture de lignes | 106/156 (68 %) | 156/156 (100 %) |
+| Mutants tués | 46/85 (54 %) | 84/85 (99 %) |
 | Mutants non couverts | 33 | 0 |
-| Mutants survivants | 2 | 0 |
+| Mutants survivants | 6 | 1 |
 
-Nous avons confirmé le résultat des tests manuels de deux façons : cinq exécutions complètes de PIT donnent toutes 85 mutants tués sur 85, et PIT relancé séparément pour chacune des neuf familles de mutateurs tue aussi tous les mutants de chaque famille.
+Les tests manuels détectent les 6 mutants survivants de `isSimpleName()` et 32 des 33 mutants non couverts. Le seul mutant restant est un mutant équivalent, qu'aucun test ne peut détecter (voir ci-dessous). Les tests manuels détectent donc tous les mutants détectables.
 
-Les 32 tests réussissent, et le module ne présente aucune violation Checkstyle. Avec les tests d'origine et les tests générés corrigés, la classe `MediaType` est maintenant vérifiée par 136 tests, qui réussissent tous : 9 d'origine, 95 générés puis corrigés, et 32 écrits à la main. Pour que PIT prenne en compte les nouveaux tests, `<targetTests>` dans `tika-core/pom.xml` contient `MediaTypeTest`, `MediaType_*` et `MediaTypeManualTest`. Dans cette configuration, PIT tue les 85 mutants.
+Les 32 tests réussissent, et le module ne présente aucune violation Checkstyle. Avec les tests d'origine et les tests générés corrigés, la classe `MediaType` est maintenant vérifiée par 136 tests, qui réussissent tous : 9 d'origine, 95 générés puis corrigés, et 32 écrits à la main. Pour que PIT prenne en compte les nouveaux tests, `<targetTests>` dans `tika-core/pom.xml` contient `MediaTypeTest`, `MediaType_*` et `MediaTypeManualTest`. Dans cette configuration, PIT tue 84 mutants sur 85, sur notre machine comme dans la GitHub Action.
 
 Les mesures se reproduisent avec :
 
 ```
-.\mvnw.cmd -pl tika-core -am test "-Dtest=MediaTypeManualTest,MediaTypeTest" "-Dsurefire.failIfNoSpecifiedTests=false"
-.\mvnw.cmd -pl tika-core test-compile org.pitest:pitest-maven:mutationCoverage
+.\mvnw.cmd -pl tika-core -am test "-Dtest=MediaType*Test" "-Dsurefire.failIfNoSpecifiedTests=false"
+.\mvnw.cmd -pl tika-core clean test-compile org.pitest:pitest-maven:mutationCoverage
 ```
+
+### Mutant équivalent
+
+Le mutant restant se trouve à la ligne 257 de `MediaType.java`, dans `parse()` :
+
+```java
+synchronized (SIMPLE_TYPES) {
+    MediaType type = SIMPLE_TYPES.get(string);
+    if (type == null) {
+        int slash = string.indexOf('/');
+        if (slash == -1) {
+            return null;        // ligne 257
+```
+
+PIT y applique le mutateur « remplacer la valeur retournée par `null` ». Or cette instruction retourne déjà `null` : le mutant a exactement le même comportement que le code d'origine. C'est un mutant équivalent, et aucun test, quel qu'il soit, ne peut le faire échouer. Notre test `testParseWithoutSlashReturnsNull` exécute bien cette ligne, et il réussit avec ou sans le mutant.
+
+PIT écarte normalement ce genre de mutant. Il ne le fait pas ici parce que l'instruction se trouve dans un bloc `synchronized` : dans le code compilé, la libération du verrou s'intercale entre le chargement de `null` et le retour (`aconst_null`, `aload_1`, `monitorexit`, `areturn`), et PIT ne reconnaît plus un retour de `null`.
+
+Le score de 84 sur 85 est donc le maximum atteignable pour cette classe avec les mutateurs par défaut de PIT.
 
 ### Difficulté rencontrée : le cache statique de `parse()`
 
-Les deux mutants survivants se trouvent dans le chemin rapide de `parse()`, qui appelle `isSimpleName()`. Ce chemin n'a qu'un seul effet observable : un type simple est rangé dans un cache statique, de sorte que deux appels de `parse()` avec la même chaîne retournent le même objet. Notre premier test vérifiait cela avec une chaîne fixe (`assertSame` sur deux appels), et les deux mutants survivaient quand même.
+Plusieurs mutants de `isSimpleName()` n'ont qu'un seul effet observable : un type simple est rangé dans un cache statique, de sorte que deux appels de `parse()` avec la même chaîne retournent le même objet. Notre premier test vérifiait cela avec une chaîne fixe (`assertSame` sur deux appels), et ces mutants survivaient quand même.
 
-La cause est que PIT exécute les mutants dans une même machine virtuelle. Dès la première exécution du test, la chaîne fixe entre dans le cache; aux exécutions suivantes, `parse()` la retrouve dans le cache et ne rappelle plus `isSimpleName()`. Le mutant n'est donc jamais exercé. Nous avons corrigé le test pour qu'il utilise à chaque exécution un nom jamais analysé auparavant (méthode `neverParsedName()`), après quoi les deux mutants sont tués.
+La cause est que PIT exécute les mutants dans une même machine virtuelle. Dès la première exécution du test, la chaîne fixe entre dans le cache; aux exécutions suivantes, `parse()` la retrouve dans le cache et ne rappelle plus `isSimpleName()`. Le mutant n'est donc jamais exercé. Nous avons corrigé le test pour qu'il utilise à chaque exécution un nom jamais analysé auparavant (méthode `neverParsedName()`), après quoi ces mutants sont tués.
 
 Cette difficulté illustre un piège général : un test qui dépend d'un état statique peut réussir pour une raison étrangère à ce qu'il prétend vérifier, et seul le test de mutation nous l'a révélé.
 
-### Écart avec le rapport PIT initial
+### Reproductibilité des mesures
 
-Le rapport PIT initial, cité au début de ce document, indique 46 mutants tués et 6 survivants pour les tests d'origine. Nos mesures donnent 50 mutants tués et 2 survivants avec les mêmes tests, le même code et la même configuration. Le rapport initial a été produit sur une autre machine. Le score de PIT pour cette classe n'est donc pas parfaitement reproductible d'une machine à l'autre, et les chiffres de ce document sont à comparer entre eux plutôt qu'avec le rapport initial.
+Pendant le travail, nos mesures locales de PIT ne correspondaient ni au rapport initial ni à la GitHub Action : nous obtenions par exemple 50 mutants tués au lieu de 46 pour les tests d'origine, et 85 sur 85 au lieu de 84 pour l'ensemble des tests.
 
-Pour cette raison, nous n'avons pas retenu le seul chiffre affiché par PIT pour les tests manuels : nous l'avons revérifié famille de mutateurs par famille de mutateurs, comme indiqué dans la section « Résultats ». Cette vérification a révélé qu'un mutant, celui de la limite du cache à la ligne 258 de `parse()`, était compté comme tué sans l'être réellement. Nous avons ajouté le test `testParseStopsCachingAtLimit` pour le tuer.
+La cause était la compilation. Sur le poste de développement, les classes de `tika-core/target/classes` avaient été produites par un autre compilateur que le `javac` du JDK 17 utilisé par la GitHub Action, et Maven les réutilisait sans les recompiler. Deux compilateurs sont possibles sur ce poste, et nous n'avons pas déterminé lequel : celui de l'extension Java de VS Code, qui compile en arrière-plan, ou celui du JDK 27, installé en premier et utilisé pour les toutes premières compilations. Un compilateur différent produit un code légèrement différent (157 lignes exécutables au lieu de 156), et PIT, qui travaille sur le code compilé, ne génère alors pas exactement les mêmes mutants.
+
+En ajoutant `clean` à la commande de PIT, Maven recompile tout avec le `javac` du JDK 17. Les mesures locales sont alors identiques à celles de la GitHub Action, et le score des tests d'origine correspond exactement au rapport initial (46 tués, 33 non couverts, 6 survivants). Tous les chiffres de ce document ont été mesurés de cette façon.
 
 ### Limites
 
 - Le score de mutation porte sur les mutants que PIT génère avec ses mutateurs par défaut. Il ne prouve pas l'absence de défaut dans `MediaType`.
 - Les tests du cache vérifient un détail d'implémentation (l'identité des objets retournés), et non un comportement promis par la Javadoc. Ils devraient être revus si le cache était retiré ou modifié.
 - Le test de la limite du cache (`testParseStopsCachingAtLimit`) accède par réflexion au champ privé `SIMPLE_TYPES` pour remplir le cache jusqu'à 10 000 entrées, puis le remet dans son état d'origine. C'est le seul moyen d'atteindre cette limite sans perturber les autres tests, mais le test dépend du nom et du type de ce champ privé.
+- Le cache statique rend aussi le verdict de PIT sensible à l'ordre d'exécution des mutants : un mutant peut laisser dans le cache une valeur qui influence les mutants suivants. Nous n'avons pas observé de variation entre deux exécutions sur une compilation propre, mais nous ne pouvons pas l'exclure.
+
+## Exécution dans la GitHub Action
+
+Tous les nouveaux tests s'exécutent dans une GitHub Action ajoutée au dépôt :
+
+- __Workflow :__ `tache 2 - tests MediaType`, défini dans `.github/workflows/tache2-tests-mediatype.yml`.
+- __Déclenchement :__ à chaque push et à chaque pull request sur `main`, ou à la main depuis l'onglet Actions (bouton « Run workflow »).
+- __Environnement :__ Ubuntu, JDK 17 (Temurin).
+
+| Job | Commande | Résultat |
+|---|---|---|
+| `tests MediaType` | `./mvnw -B -pl tika-core -am test -Pci "-Dtest=MediaType*Test" -Dsurefire.failIfNoSpecifiedTests=false` | Réussi |
+| `mutation PIT` | `./mvnw -B -pl tika-core test-compile org.pitest:pitest-maven:mutationCoverage` | Réussi : 84 mutants tués sur 85, couverture de lignes 156/156 |
+
+Le premier job exécute les trois jeux de tests de `MediaType` : les tests d'origine, les tests générés corrigés et les tests écrits à la main. Le profil `ci` vérifie aussi le formatage du code et les règles Checkstyle.
+
+Exécution de référence : https://github.com/ayaelb8/IFT3913_T2/actions/runs/38168580328
+
+Pour vérifier le résultat, ouvrir cette exécution, puis le job `tests MediaType` et son étape « Tests de MediaType » : le journal Maven donne le nombre de tests exécutés par classe et se termine par `BUILD SUCCESS`. Les rapports détaillés sont joints à l'exécution : `rapports-surefire` pour les tests et `rapport-pit` pour l'analyse de mutation. Il faut être connecté à GitHub pour lire les journaux et télécharger les rapports.
+
+Les autres workflows du dépôt (`main jdk17 build`, `main jdk21 build`, etc.) sont les workflows d'origine d'Apache Tika. Ils construisent l'ensemble du projet, ne font pas partie de cette tâche et ne fonctionnent pas forcément dans ce dépôt.
 
 ## Comparaison des oracles : tests générés et tests écrits à la main
 
@@ -505,7 +553,7 @@ Un oracle spécifique échoue dès que le résultat s'écarte de la valeur atten
 
 - __Les oracles manuels comparent des valeurs exactes.__ Par exemple, `testDerivedTypeMergesAndOverridesParameters` attend la chaîne complète `text/plain; charset=ISO-8859-1; delsp=yes; format=flowed`, ce qui vérifie à la fois la fusion, le remplacement et le tri des paramètres. Les tests du cache utilisent `assertSame` et `assertNotSame`, qui distinguent deux objets égaux de deux fois le même objet. Aucun oracle généré ne vérifie l'identité d'un objet, alors que c'est le seul moyen d'observer le chemin rapide de `parse()`.
 - __Les oracles générés sont spécifiques dans quelques cas seulement.__ `testImageMethod` compare quatre valeurs exactes, et c'est le test généré qui détecte le plus de mutants à lui seul (7). À l'inverse, `MediaType_text_3_1_Test` n'utilise que `assertNull` dans ses 11 tests : il ne peut pas distinguer un rejet pour la bonne raison d'un rejet pour une autre raison, et c'est précisément ce qui s'y produit.
-- __L'analyse de mutation confirme cet écart.__ Les tests générés qui réussissent détectent 38 mutants sur 85, et laissent survivre les mutants qui remplacent le retour de `text()` et de `application()` par `null`, puisque leurs oracles attendent déjà `null`. Les tests manuels, ajoutés aux tests d'origine, détectent les 85 mutants.
+- __L'analyse de mutation confirme cet écart.__ Les tests générés qui réussissent détectent 38 mutants sur 85, et laissent survivre les mutants qui remplacent le retour de `text()` et de `application()` par `null`, puisque leurs oracles attendent déjà `null`. Les tests manuels, ajoutés aux tests d'origine, détectent 84 mutants sur 85, le dernier étant un mutant équivalent.
 
 ### Vérifications triviales
 
@@ -522,7 +570,7 @@ Une vérification triviale réussit presque quel que soit le comportement du cod
 | Pertinence | Souvent faux : ils reflètent un comportement supposé (validation, exceptions, valeurs exactes de `compareTo()`). Corrects pour `equals()`. | Déduits du code et de la Javadoc; tous réussissent. |
 | Spécificité | Inégale : précise dans `testImageMethod`, faible ailleurs (`assertNull` seul). | Élevée dans nos tests (valeurs exactes, identité des objets); moyenne dans `MediaTypeTest`. |
 | Vérifications triviales | Fréquentes : `assertNotNull`, assertions sur des mocks, oracles dupliqués. | Absentes de nos tests; présentes dans `MediaTypeTest` (`assertNotNull`). |
-| Mutants détectés | 38/85 pour les tests générés qui réussissent. | 50/85 pour `MediaTypeTest`, 85/85 avec `MediaTypeManualTest`. |
+| Mutants détectés | 38/85 pour les tests générés qui réussissent. | 46/85 pour `MediaTypeTest`, 84/85 avec `MediaTypeManualTest` (le mutant restant est équivalent). |
 
 L'IA produit vite des oracles dont la forme est correcte, mais elle ne connaît pas le comportement réel de la classe : elle écrit ce que la méthode devrait faire d'après son nom. Un oracle écrit à la main demande de lire le code ou sa documentation, et c'est cette étape qui le rend pertinent. La comparaison avec `MediaTypeTest` montre aussi que cette lecture ne suffit pas : c'est l'analyse de mutation qui révèle si un oracle, humain ou généré, vérifie réellement quelque chose.
 
