@@ -1,12 +1,14 @@
 # Tâche 2
 
-## Classe à tester:
+## 1. Classe à tester:
 
+### 1.1Classe retenue
 Le choix de classes devait être basé sur la présence de tests pour la classe en question et une couverture de test inférieure à 100%. La classe __`MediaType.java`__, présente dans le module tika-core, a été choisie entre autres puisque son fichier de test existe[^1]. De plus, l'index[^2] de couverture avec JaCoCo indique une __couverture d'instructions de 79%__ et une couverture de branches de 74%. De plus, le _Pit Test Coverage Report_[^3] nous indique une __couverture de mutation de 54 %__, soit 46/85. En effet, malgré une couverture d'instruction de 79 %, 46 mutants sont tués, __6 mutants survivent__ et 33 mutants (38,82 %) n'ont pas pu être détectés par manque de tests adéquats exécutant le code correspondant à chaque mutant. Les mutants survivants montrent que certains tests ont réussi malgré la modification introduite par PIT, ce qui indique ainsi des comportements qui ne sont pas suffisamment vérifiés par les tests. Cela nous permet d'avoir des pistes sur les améliorations ou les ajouts à faire pour améliorer les tests existants. 
 
 La classe `MediaType.java` comporte 28 méthodes dont 11 avec une couverture inférieure à 100%.
 <img width="989" height="659" alt="image" src="https://github.com/user-attachments/assets/f44fa766-0859-4e8b-a8ba-f2b532704aef" />[^4]
 
+### 1.2 Méthode retenue
 La méthode `isSimpleName()` est la seule à avoir des mutants survivants dans `MediaType.java`, cette méthode a une couverture de 97%. Cette méthode est privée, donc les tests seront générés pour la méthode publique `MediaType.parse()` qui appelle `isSimpleName()` aux lignes 259 à 260.
 <img width="1014" height="220" alt="image" src="https://github.com/user-attachments/assets/2d23fbb8-0e69-4282-8a2d-6ce72da7a7c6" />
 <img width="1251" height="839" alt="image" src="https://github.com/user-attachments/assets/761c7dfc-d9c5-4f4b-8253-45202ef4b40d" />[^5]
@@ -54,15 +56,15 @@ public static MediaType parse(String string) {
 
 __Pour la génération de test, la méthode choisie sera donc logiquement indirectement la méthode `isSimpleName()` via `MediaType.parse()` dans la classe `MediaType.java` et le module tika-core.__
 
-## IA et test
+## 2. IA et test
 
-### Installation de ChatUniTest dans le pipeline Maven
+### 2.1 Installation et environnement local
 
 ChatUniTest est un plugin Maven qui génère des tests JUnit à l'aide d'un modèle de langage (LLM). Nous l'avons intégré au module `tika-core`, dans le même `pom.xml` que PIT, pour générer des tests pour la classe `org.apache.tika.mime.MediaType`.
 
 Deux éléments ont été ajoutés à `tika-core/pom.xml`, comme le demande la documentation du plugin :
 
-1. __La dépendance `chatunitest-starter` 1.4.0__ (`io.github.ZJU-ACES-ISE`, type `pom`), qui fournit les bibliothèques utilisées par les tests générés (JUnit, Mockito). Nous l'avons placée en portée `test` pour qu'elle ne soit pas transmise aux projets qui dépendent de `tika-core`.
+1. __La dépendance `chatunitest-starter` 1.4.0__ (`io.github.ZJU-ACES-ISE`, type `pom`), qui fournit les bibliothèques utilisées par les tests générés (JUnit, Mockito). Nous l'avons placée dans la portée `test` pour qu'elle ne soit pas transmise aux projets qui dépendent de `tika-core`.
 2. __Le plugin `chatunitest-maven-plugin` 2.1.1__ (`io.github.zju-aces-ise`), la dernière version publiée sur Maven Central, configuré ainsi :
 
 | Paramètre | Valeur | Rôle |
@@ -88,7 +90,7 @@ La génération se lance depuis la racine du projet, avec le Maven wrapper fourn
 
 La première commande compile `tika-core` et les modules dont il dépend. La seconde analyse le module (361 classes, 1617 méthodes), puis, pour chaque méthode de `MediaType`, demande un test au LLM, le compile et l'exécute. En cas d'échec, l'erreur est renvoyée au LLM pour correction, jusqu'à 5 fois.
 
-### Défis rencontrés lors de l'installation
+### 2.2 Défis rencontrés lors de l'installation de chatUnitest
 
 1. __Environnement Java et Maven.__ Maven n'était pas installé et `JAVA_HOME` n'était pas défini. Nous avons utilisé le Maven wrapper du projet (`mvnw.cmd`). L'option `-am` est nécessaire : sans elle, le build échoue parce que `tika-core` dépend du module `tika-annotation-processor`.
 2. __Incompatibilité avec Java 27.__ Le plugin échouait avec `Invalid Java version format: 27` : il lit la version de Java en la découpant sur le caractère « . » et rejette une version sans point. Nous avons installé le JDK 17 (Temurin 17.0.20), qui est aussi la version ciblée par Tika.
@@ -101,11 +103,12 @@ La première commande compile `tika-core` et les modules dont il dépend. La sec
    - __Le modèle retenu est plus petit.__ Nous sommes passés à `qwen2.5-coder:3b` (environ 2 Go chargé), qui s'exécute entièrement sur la carte graphique. La génération complète devient possible en un temps raisonnable, mais avec un modèle qui a moins de la moitié des paramètres du premier, donc moins capable de raisonner sur du code.
    - __Le modèle lit peu de code à la fois.__ Pour tenir dans la mémoire vidéo, la fenêtre de contexte est restée à 4096 tokens. C'est ce qui nous a obligés à limiter les demandes à 3000 tokens (défi 5), alors que ChatUniTest est prévu pour en envoyer jusqu'à 10 923. Le plugin envoie donc au modèle moins d'informations sur `MediaType` et sur les classes qu'elle utilise.
 
-   Ces contraintes expliquent vraisemblablement une bonne partie des défauts relevés dans la section « Explication et critique des tests générés ». Un petit modèle qui ne voit qu'une partie du code a tendance à compléter avec ce qu'il suppose : il invente une validation qui n'existe pas, se trompe sur le rôle des arguments, et ajoute Mockito par habitude. Nous n'avons toutefois pas pu le vérifier : il aurait fallu refaire la génération avec un modèle plus gros dans la même configuration, ce que la machine ne permettait pas. Les résultats de cette tâche décrivent donc ce que ChatUniTest produit avec un modèle local de 3 milliards de paramètres, et non ce que l'outil peut produire avec un modèle plus puissant.
+## 3. Génération et évaluation des tests
 
-### Résultat de la génération
+### 3.1 Emplacements des tests
 
-__Où sont les tests générés ?__ ChatUniTest a écrit 9 fichiers dans `tika-core/chatunitest-tests/org/apache/tika/mime/` : 8 classes de test, nommées `MediaType_<méthode>_<n>_<n>_Test.java`, et `MediaType_Suite.java`, qui les regroupe. Elles visent 8 des 17 méthodes publiques de `MediaType` : `application`, `audio`, `image`, `text`, `parse`, `equals`, `compareTo` et `hasParameters`. Aucune classe n'a été produite pour `video`, `set` (deux variantes), `getType`, `getSubtype`, `getBaseType`, `getParameters`, `hashCode` et `toString`. Le dépôt contient donc les tests générés à deux endroits :
+ChatUniTest a écrit 9 fichiers dans `tika-core/chatunitest-tests/org/apache/tika/mime/` : 8 classes de test, nommées `MediaType_<méthode>_<n>_<n>_Test.java`, et `MediaType_Suite.java`, qui les regroupe. Elles visent 8 des 17 méthodes publiques de `MediaType` : `application`, `audio`, `image`, `text`, `parse`, `equals`, `compareTo` et `hasParameters`. Aucune classe n'a été produite pour `video`, `set` (deux variantes), `getType`, `getSubtype`, `getBaseType`, `getParameters`, `hashCode` et `toString`. 
+Le dépôt contient donc les tests générés à deux endroits :
 
 | Emplacement | Contenu |
 |---|---|
@@ -120,36 +123,15 @@ __Pourquoi ne pas avoir généré les tests directement dans le dossier de tests
 
 Générer directement dans `src/test` n'aurait donc évité aucune correction. Le dossier séparé conserve en plus la sortie brute de l'IA, sans laquelle on ne pourrait plus vérifier combien de tests échouaient ni combien de corrections ont été nécessaires.
 
-__Les tests générés compilent-ils et s'exécutent-ils sans intervention manuelle ?__ Non. Les 8 classes de test compilent telles quelles, mais pas le fichier de suite, et l'exécution a demandé des corrections de la configuration Maven. Une fois ces corrections faites, les 95 tests s'exécutent, mais seulement 28 réussissent (48 échecs et 19 erreurs). Il a ensuite fallu corriger le contenu de 38 méthodes de test pour que les 95 tests réussissent. Les problèmes et les corrections sont décrits dans les deux sections suivantes, et le détail des échecs dans « Résultats et analyse des tests générés ».
+### 3.2 Corrections apportées aux tests générés
 
-### Problème à la suite de la génération de tests
-
-En intégrant les tests générés par ChatUniTest, j’ai également obtenu le fichier `MediaType_Suite.java`, qui regroupe les différentes classes de tests. Cependant, ce fichier utilise des imports JUnit Platform (`org.junit.platform.runner` et `org.junit.platform.suite.api`) qui ne sont pas disponibles dans la configuration actuelle du projet. Cela entraîne une erreur de compilation. Pour pouvoir évaluer les huit classes de tests individuellement sans modifier le contenu généré, j’ai déplacé le fichier `MediaType_Suite.java` hors du répertoire des tests pendant l'exécution des autres fichiers. Ce problème d’intégration a été noté séparément des échecs et des erreurs observés lors de l’exécution des tests eux-mêmes.
-
-Dans `MediaType_audio_1_2_Test`, un test a également provoqué une erreur liée à un nombre incorrect d'arguments lors d'un appel par réflexion. Il s'agit là encore d'un problème dans la manière dont le test invoque la méthode.
-
-### Corrections nécessaires
-
-__Combien de corrections ont été nécessaires ?__ Deux séries de corrections : 4 corrections de configuration pour que les tests s'exécutent, puis la correction de 38 méthodes de test sur 66 (67 exécutions sur 95) pour que tous les tests réussissent.
-
-#### Corrections de configuration et d'intégration
-
-| # | Problème observé | Correction |
-|---|---|---|
-| 1 | Avec `chatunitest-starter`, `mvn test` n'exécutait plus aucun test de `tika-core` (`Tests run: 0`), y compris `MediaTypeTest`, tout en affichant `BUILD SUCCESS`. Le starter apporte JUnit 4 et `junit-platform-runner`, ce qui fait choisir à Surefire son fournisseur JUnit 4, qui ignore les tests JUnit 5. | Exclusion de `junit-platform-runner` de la dépendance `chatunitest-starter`. |
-| 2 | Même cause que le problème 1. | Configuration explicite de `maven-surefire-plugin` 3.5.6 pour le moteur `junit-jupiter` (`includeJUnit5Engines`). |
-| 3 | Les tests générés qui utilisent Mockito échouaient tous à la création des mocks : 31 erreurs sur 95 tests, soit tous les tests de `audio`, `hasParameters` et `parse`. | Exclusion de la version de Byte Buddy apportée par le starter, et ajout de `byte-buddy` et `byte-buddy-agent` 1.17.7 en portée `test`. Les erreurs passent de 31 à 19. |
-| 4 | Le fichier de suite généré ne compile pas (problème décrit dans la section précédente). | Mise à l'écart du fichier de suite; les 8 classes sont exécutées individuellement. |
-
-Après ces corrections, les tests d'origine s'exécutent de nouveau normalement (`MediaTypeTest` : 9 tests, 9 réussis).
+Deux types de corrections ont été nécessaires : des ajustements techniques pour intégrer et exécuter les tests dans le projet, puis des modifications du contenu de certains tests générés pour faire réussir les 95 tests. Les problèmes d’intégration sont présentés en premier, suivis des corrections apportées aux tests eux-mêmes.
 
 À ce stade, 67 tests générés échouent encore. Leurs défauts viennent du contenu des tests eux-mêmes (assertions qui ne correspondent pas au comportement réel de `MediaType`, usage inutile de Mockito) et sont analysés dans « Documentation des tests générés ». Par exemple, les 16 erreurs de `MediaType_parse_7_0_Test` viennent toutes de l'annotation `@InjectMocks` appliquée à `MediaType`, que Mockito ne peut pas instancier.
 
-#### Corrections du contenu des tests générés
-
 Pour que tous les nouveaux tests s'exécutent avec succès, nous avons corrigé une copie des 8 classes, placée dans `tika-core/src/test/java/org/apache/tika/mime/`. La sortie brute de ChatUniTest est conservée telle quelle dans `tika-core/chatunitest-tests/`, pour que les analyses de ce document restent vérifiables.
 
-Règle suivie : garder le nom, la structure et l'intention de chaque test, et ne modifier que ce qui l'empêche de réussir, c'est-à-dire la donnée d'entrée, le résultat attendu ou l'usage de Mockito. Chaque résultat attendu corrigé a été déterminé à partir du code de `MediaType`.
+Seules les modifications qui empêchent le test de réussir seront apportées, c'est-à-dire la donnée d'entrée, le résultat attendu ou l'usage de Mockito. Chaque résultat attendu corrigé a été déterminé à partir du code de `MediaType`.
 
 | Classe | Méthodes corrigées | Nature des corrections |
 |---|---:|---|
@@ -163,16 +145,17 @@ Règle suivie : garder le nom, la structure et l'intention de chaque test, et ne
 | `MediaType_text_3_1_Test` | 0 sur 11 | Aucune. |
 | __Total__ | __38 sur 66__ | |
 
-S'y ajoutent, pour les 8 classes, trois corrections de conformité exigées par le build de Tika, qui applique Checkstyle aux tests : ajout de l'en-tête de licence Apache, remplacement des imports en étoile et des imports inutilisés, et découpage des lignes de plus de 180 caractères.
+S'y ajoutent, pour les huit classes, trois corrections de conformité exigées par le build de Tika : ajout de l'en-tête de licence Apache, remplacement des imports en étoile et suppression des imports inutilisés, ainsi que découpage des lignes dépassant 180 caractères.
 
-Résultat : les 95 tests générés réussissent, sans violation Checkstyle. Deux réserves sur ces tests corrigés :
+Après ces corrections, les 95 tests de la version corrigée réussissent et les violations de Checkstyle sont éliminées. Ce résultat confirme que les tests peuvent être intégrés au projet, mais ne garantit pas à lui seul leur qualité fonctionnelle. Celle-ci est examinée dans la section 3.3.
 
-- __Ils décrivent le comportement actuel de la classe.__ Quand l'oracle de l'IA était faux, nous l'avons aligné sur ce que le code fait réellement. Un test comme `testNullApplication`, qui attend maintenant `application/null`, constate ce comportement plus qu'il ne le valide.
-- __Les défauts de conception relevés dans la critique demeurent.__ Les 11 tests de `MediaType_text_3_1_Test` réussissaient déjà et n'ont pas été modifiés : ils passent toujours pour la mauvaise raison, et 6 d'entre eux restent identiques.
+### 3.3 Résultats des tests
 
-## Documentation des tests générés
+#### 3.3.1 Résultats des tests initiaux
 
-### Résultats et analyse des tests générés
+xxxxxxxxxxxxxxxxxxxxxxxxxxx  à ajouter xxxxxxxxxxxxxxxxxxxxxxxxxx
+
+#### 3.3.2 Défauts observés et critique des oracles
 
 | Classe de test | Tests exécutés | Échecs | Erreurs |
 |---|---:|---:|---:|
@@ -185,18 +168,6 @@ Résultat : les 95 tests générés réussissent, sans violation Checkstyle. Deu
 | `MediaType_parse_7_0` | 16 | 0 | 16 |
 | `MediaType_text_3_1` | 11 | 0 | 0 |
 | **Total** | **95** | **48** | **19** |
-
-Les huit classes de tests générées par ChatUniTest ont été exécutées individuellement, sans modifier leur contenu. D'après les rapports[^7], sur les 95 tests exécutés, 28 ont réussi, 48 ont échoué et 19 ont provoqué des erreurs d’exécution. Un test qui réussit n’est pas automatiquement bon, et inversement, un test qui échoue n’est pas automatiquement mauvais. Il faut vérifier les assertions et les comparer au comportement réel de MediaType. Les classes __`MediaType_equals_18_1_Test`__ et __`MediaType_text_3_1_Test`__ ont réussi tous leurs tests. 
-
-Dans __`MediaType_application_0_0_Test`__, 26 des 28 tests ont échoué. Par exemple, `testNullApplication()` attendait null, alors que le résultat obtenu était application/null. D’autres tests, comme `testApplicationWithCharset()` et `testApplicationWithParameters()`, attendaient une valeur non nulle, mais la méthode retournait null pour les entrées utilisées. Ces résultats montrent que les cas de test et les résultats attendus doivent être vérifiés à partir du comportement réel de la méthode `application()`.
-
-Dans __`MediaType_compareTo_20_1_Test`__, trois des cinq tests ont échoué. Le test `testCompareToDifferentTypeSameParameters()` attendait exactement -1, alors que la méthode retournait 19. Or, la méthode `compareTo()` doit notamment respecter le signe correspondant à l'ordre de comparaison; elle ne garantit pas nécessairement une valeur exacte de -1 ou de 1. Deux autres tests attendaient une NullPointerException, mais aucune exception n'a été lancée. Ces assertions reposent donc sur des hypothèses qui ne correspondent pas au comportement observé.
-
-Dans __`MediaType_image_2_1_Test`__, huit des neuf tests ont échoué. Par exemple, `testImageMethodWithInvalidType()` attendait null, alors que le résultat était image/invalid. De même, `testImageMethodWithParameters()` attendait charset=utf-8, alors que la valeur récupérée était utf-8. Ces exemples indiquent que certains tests supposent une validation plus stricte que celle effectuée par la méthode ou comparent incorrectement la valeur d'un paramètre.
-
-Enfin, dans __`MediaType_hasParameters_15_3_Test`__, huit tests ont échoué et deux ont provoqué des erreurs. Plusieurs tests attendaient true pour des objets comportant des paramètres, mais obtenaient false. Deux autres tests ont échoué à cause de configurations Mockito jugées inutiles.
-
-### Explication et critique des tests générés
 
 Cette section explique ce que chaque classe générée cherche à vérifier, puis critique la qualité des tests à partir du code de `MediaType`[^6]. Il faut savoir que les méthodes `application()`, `audio()`, `image()` et `text()` font toutes la même chose : elles ajoutent un préfixe au sous-type reçu et appellent `parse()`. Par exemple, `image("jpeg")` retourne `parse("image/jpeg")`.
 
@@ -211,7 +182,17 @@ Cette section explique ce que chaque classe générée cherche à vérifier, pui
 | `MediaType_parse_7_0` | `parse()` avec des types simples, des paramètres et des valeurs entre guillemets | 0 / 16 | Aucun test ne s'exécute à cause de `@InjectMocks` |
 | `MediaType_text_3_1` | `text()` avec des entrées jugées invalides | 11 / 11 | Réussit par accident; 6 tests identiques; aucun cas valide |
 
-#### Défauts observés
+Les huit classes de tests générées par ChatUniTest ont été exécutées individuellement, sans modifier leur contenu. D'après les rapports[^7], sur les 95 tests exécutés, 28 ont réussi, 48 ont échoué et 19 ont provoqué des erreurs d’exécution. Un test qui réussit n’est pas automatiquement bon, et inversement, un test qui échoue n’est pas automatiquement mauvais. Il faut vérifier les assertions et les comparer au comportement réel de MediaType. Les classes __`MediaType_equals_18_1_Test`__ et __`MediaType_text_3_1_Test`__ ont réussi tous leurs tests. 
+
+Dans __`MediaType_application_0_0_Test`__, 26 des 28 tests ont échoué. Par exemple, `testNullApplication()` attendait null, alors que le résultat obtenu était application/null. D’autres tests, comme `testApplicationWithCharset()` et `testApplicationWithParameters()`, attendaient une valeur non nulle, mais la méthode retournait null pour les entrées utilisées. Ces résultats montrent que les cas de test et les résultats attendus doivent être vérifiés à partir du comportement réel de la méthode `application()`.
+
+Dans __`MediaType_compareTo_20_1_Test`__, trois des cinq tests ont échoué. Le test `testCompareToDifferentTypeSameParameters()` attendait exactement -1, alors que la méthode retournait 19. Or, la méthode `compareTo()` doit notamment respecter le signe correspondant à l'ordre de comparaison; elle ne garantit pas nécessairement une valeur exacte de -1 ou de 1. Deux autres tests attendaient une NullPointerException, mais aucune exception n'a été lancée. Ces assertions reposent donc sur des hypothèses qui ne correspondent pas au comportement observé.
+
+Dans __`MediaType_image_2_1_Test`__, huit des neuf tests ont échoué. Par exemple, `testImageMethodWithInvalidType()` attendait null, alors que le résultat était image/invalid. De même, `testImageMethodWithParameters()` attendait charset=utf-8, alors que la valeur récupérée était utf-8. Ces exemples indiquent que certains tests supposent une validation plus stricte que celle effectuée par la méthode ou comparent incorrectement la valeur d'un paramètre.
+
+Enfin, dans __`MediaType_hasParameters_15_3_Test`__, huit tests ont échoué et deux ont provoqué des erreurs. Plusieurs tests attendaient true pour des objets comportant des paramètres, mais obtenaient false. Deux autres tests ont échoué à cause de configurations Mockito jugées inutiles.
+
+#### Défauts observés:
 
 __1. Le modèle invente la spécification au lieu de lire le code.__ C'est la cause de la plupart des 48 échecs. Les tests supposent que `MediaType` valide ses entrées et retourne `null` pour un type inconnu, alors que le code accepte tout nom syntaxiquement correct : `image("invalid")` retourne `image/invalid`, et `application(null)` retourne `application/null`. De même, `MediaType_compareTo_20_1_Test` attend une `NullPointerException` quand les paramètres diffèrent, et `MediaType_parse_7_0_Test` attend une `IllegalArgumentException` pour `parse(null)`, alors que la méthode retourne `null`.
 
@@ -226,24 +207,22 @@ __4. Des tests réussissent sans rien démontrer.__ Les 11 tests de `MediaType_t
 
 __5. Les tests sont redondants et mal nommés.__ Dans `MediaType_text_3_1_Test`, 6 des 11 tests utilisent exactement la même entrée sous des noms différents (`...InvalidKeyAndValue`, `...InvalidKeyAndValue2`, `...3`, `...4`). Dans `MediaType_equals_18_1_Test`, 9 des 11 tests vérifient la même propriété (deux objets différents ne sont pas égaux) avec des combinaisons très proches, et `testEqualsWithDifferentOrderOfParameters` n'échange pas l'ordre des paramètres : il inverse la clé et la valeur. Le nombre de tests donne donc une fausse impression de couverture.
 
-__6. Les tests ne visent pas l'objectif de la tâche.__ Les mutants survivants se trouvent dans `isSimpleName()`, accessible par `parse()`. Les tuer demande des entrées aux limites des caractères acceptés (par exemple une majuscule, un espace, ou les caractères `-`, `+`, `.` et `_`). Aucun test généré ne cible ces limites de façon délibérée, et la seule classe consacrée à `parse()` ne s'exécute pas. L'analyse de mutation nuance toutefois ce constat : ajoutés aux tests d'origine, les tests générés détectent 4 de ces 6 mutants, sans les viser, parce que plusieurs tests attendent `null` pour une chaîne mal formée. Les 2 mutants qui restent sont justement ceux qui demandent des entrées aux limites (voir « Analyse de mutation »).
+__6. Absence de ciblage délibéré des mutants initiaux.__ Les mutants survivants se trouvent dans `isSimpleName()`, accessible par `parse()`. Les tuer demande des entrées aux limites des caractères acceptés (par exemple une majuscule, un espace, ou les caractères `-`, `+`, `.` et `_`). Aucun test généré ne cible ces limites de façon délibérée, et la seule classe consacrée à `parse()` ne s'exécute pas. L'analyse de mutation nuance toutefois ce constat : ajoutés aux tests d'origine, les tests générés détectent 4 de ces 6 mutants, sans les viser, parce que plusieurs tests attendent `null` pour une chaîne mal formée. Les 2 mutants qui restent sont justement ceux qui demandent des entrées aux limites (voir « Analyse de mutation »).
 
-#### Points positifs
+#### Points positifs et limites des tests corrigés
 
 - Les 8 classes compilent sans modification et suivent les conventions du projet (JUnit 5, même paquet que la classe testée).
 - Les tests sont lisibles : noms descriptifs, structure préparation / action / vérification, tests paramétrés avec `@CsvSource` pour varier les entrées.
 - `MediaType_equals_18_1_Test` est utilisable tel quel : ses assertions correspondent au comportement réel de `equals()`.
 - Le modèle pense à des catégories de cas pertinentes (valeur nulle, chaîne vide, paramètres, guillemets), même si les résultats attendus sont souvent faux.
 
-#### Bilan
+### Bilan
 
 Sur 95 tests, 28 réussissent, et seule une partie d'entre eux vérifie réellement quelque chose : les 11 tests de `equals()`, et quelques tests isolés des autres classes. Les tests générés par un petit modèle local (`qwen2.5-coder:3b`) peuvent servir de point de départ pour trouver des idées de cas, mais chaque résultat attendu doit être revérifié à partir du code. Ce constat est à lire avec les limites matérielles décrites plus haut (défi 6) : la taille du modèle et le peu de code qu'il pouvait lire ont probablement pesé sur la qualité des tests. Dans leur état actuel, ils ne peuvent pas remplacer les tests écrits à la main dans `MediaTypeTest`.
 
+## 4. Analyse de mutation
 
-
-## Analyse de mutation
-
-### Scores de mutation
+### 4.1 Scores de mutation
 
 Nous avons exécuté PIT sur `MediaType` avec les tests d'origine, puis avec les tests générés par ChatUniTest. PIT génère 85 mutants pour cette classe.
 
@@ -266,7 +245,7 @@ Conditions de mesure :
 - PIT refuse de démarrer si un test échoue. Comme 67 des 95 tests générés bruts échouent, nous avons activé l'option `skipFailingTests` de PIT pour cette version : seuls les 28 tests qui réussissent participent à l'analyse. Cette option n'est pas nécessaire pour la version corrigée.
 - Pour la mesure sur la sortie brute, les 8 classes de `tika-core/chatunitest-tests/` ont été copiées temporairement dans `tika-core/src/test/java/org/apache/tika/mime/`, et `<targetTests>` a été réglé sur `org.apache.tika.mime.MediaType_*`.
 
-### Mutants détectés par les tests générés, et pourquoi
+### 4.2 Mutants détectés par les tests générés, et pourquoi
 
 Les 38 mutants détectés par les tests générés bruts se répartissent en quatre groupes.
 
@@ -282,7 +261,7 @@ Deux observations :
 - __Une seule classe détecte la majorité des mutants.__ Sur les 38 mutants détectés, 23 le sont par des tests de `MediaType_text_3_1_Test`. Or nous avons vu que ces tests réussissent pour une mauvaise raison : la chaîne est rejetée à cause du préfixe `text/` en double, et non à cause du paramètre que le test croit invalide. Ils détectent quand même des mutants, parce qu'ils exercent le code qui rejette une chaîne mal formée. Un test peut donc être utile au score de mutation tout en vérifiant autre chose que ce que son nom annonce.
 - __Les détections viennent des oracles précis.__ `testImageMethod` détecte 7 mutants à lui seul parce qu'il compare plusieurs valeurs exactes. À l'inverse, un test qui n'attend que `null` ne peut détecter aucun mutant qui remplace un retour par `null`.
 
-### Mutants non détectés par les tests générés
+### 4.3 Mutants non détectés par les tests générés
 
 Sur les 47 mutants que les tests générés bruts ne détectent pas, 38 se trouvent dans du code qu'aucun test généré réussi n'exécute, et 9 survivent.
 
@@ -306,7 +285,9 @@ __Mutants survivants (9).__
 | Constructeur : calcul des indices et mise entre guillemets (3) | Les tests qui utilisent le constructeur ne vérifient que `equals()`, jamais `getType()`, `getSubtype()` ou la forme textuelle d'un paramètre. |
 | `parse()` et `isSimpleName()` : chemin rapide (2) | Ces mutants ne changent que la mise en cache des types simples ou le traitement des types avec paramètres, qu'aucun test généré réussi n'observe. |
 
-### Apport des tests générés aux tests d'origine
+### 4.4 Apport des tests générés aux tests d'origine
+
+xxxxxxxxxxxxxxxxxxxxxxxxx ajouter tableau score mutation test originaux xxxxxxxxxxxxxxxxxxxxxxxxx
 
 Ajoutés aux tests d'origine, les tests générés bruts détectent 13 mutants que `MediaTypeTest` ne détectait pas, et le score passe de 46 à 59 :
 
@@ -315,7 +296,7 @@ Ajoutés aux tests d'origine, les tests générés bruts détectent 13 mutants q
 
 Il reste 26 mutants non détectés avec les tests d'origine et les tests générés bruts réunis : 21 non couverts (`union()`, `set()`, `getBaseType()`, `hasParameters()`, `video()`, `hashCode()`, deux retours de `parse()` et une branche de `equals()`) et 5 survivants (`application()`, `text()`, `compareTo()`, et deux mutants de `isSimpleName()`).
 
-### Effet de la correction des tests générés
+### 4.5 Effet de la correction des tests générés
 
 Une fois corrigés, les tests générés détectent 65 mutants au lieu de 38. Le gain vient surtout des classes qui ne s'exécutaient pas ou qui testaient un mock : `MediaType_parse_7_0_Test` couvre maintenant `parseParameters()` et `unquote()`, et `MediaType_hasParameters_15_3_Test` exécute enfin le code réel de `hasParameters()`. Les tests d'origine n'ajoutent alors plus rien : le score reste de 65 avec ou sans eux.
 
@@ -331,7 +312,7 @@ Avec les tests d'origine et les tests générés corrigés réunis, 20 mutants r
 
 Ce sont ces mutants que visent les tests écrits à la main, décrits dans la section suivante.
 
-## Tests écrits à la main
+## 5. Tests écrits à la main
 
 Nous avons écrit à la main une nouvelle classe de tests pour `MediaType`, dans un fichier séparé des tests d'origine et des tests générés :
 
@@ -339,11 +320,11 @@ Nous avons écrit à la main une nouvelle classe de tests pour `MediaType`, dans
 
 Elle contient 32 tests JUnit 5. Les tests d'origine (`MediaTypeTest`, 9 tests) n'ont pas été modifiés.
 
-### Démarche
+### 5.1 Démarche
 
 Les tests ont été conçus à partir des rapports de mutation PIT, et non à partir de la seule couverture de lignes. L'analyse de mutation montre que les tests générés ne détectent pas tous les mutants : avec les tests d'origine, il en reste 26 non détectés pour la sortie brute, et 20 après correction. Nous avons écrit les tests manuels pour qu'ils complètent les tests d'origine sans dépendre des tests générés : ils visent les 39 mutants que `MediaTypeTest` seul ne détecte pas (33 non couverts et 6 survivants), ce qui couvre aussi les mutants que les tests générés laissent passer. Pour chacun de ces mutants, nous avons lu le code visé, déterminé le comportement attendu, puis écrit un test dont l'assertion échoue si ce comportement change. Chaque résultat attendu vient du code de `MediaType`[^6] et de sa Javadoc, pas d'une supposition.
 
-### Ce que les tests vérifient
+### 5.2 Ce que les tests vérifient
 
 | Groupe | Tests | Comportement vérifié | Mutants visés |
 |---|---:|---|---|
@@ -356,11 +337,11 @@ Les tests ont été conçus à partir des rapports de mutation PIT, et non à pa
 | Accesseurs | 5 | `getType()`, `getSubtype()`, `getBaseType()`, `hasParameters()`; paramètres triés, en minuscules et non modifiables | Retours remplacés, addition remplacée par une soustraction |
 | `equals()`, `hashCode()`, `compareTo()` | 6 | Égalité sur la forme normalisée; différences de type, de sous-type et de paramètres; `null` et autre classe; signe de `compareTo()` | Retours remplacés par `true`, `false` ou `0` |
 
-### Documentation de chaque cas de test
+### 5.3 Documentation de chaque cas de test
 
 Pour chacun des 32 tests, les tableaux suivants donnent son nom, son intention (le comportement testé), la motivation des données choisies et l'explication de l'oracle (comment le comportement attendu a été déterminé). Les oracles viennent de deux sources : la Javadoc de `MediaType` quand elle décrit le comportement, et sinon la lecture du code de la méthode[^6].
 
-#### Méthodes de fabrique
+#### 5.3.1 Méthodes de fabrique
 
 | Test | Intention | Données et motivation | Oracle |
 |---|---|---|---|
@@ -432,7 +413,7 @@ Pour chacun des 32 tests, les tableaux suivants donnent son nom, son intention (
 | `testCompareToOrdersByStringForm` | `compareTo()` ordonne les types selon leur forme textuelle. | `application/pdf` et `text/plain`, comparés dans les deux sens, puis deux types égaux, puis un type et sa variante avec paramètre. | Le code retourne `string.compareTo(that.string)`. Le contrat de `Comparable` ne fixe que le signe du résultat, donc on vérifie `< 0`, `> 0` et `== 0`, jamais une valeur exacte comme `-1`. |
 | `testCompareToNullThrows` | Comparer avec `null` lance une `NullPointerException`. | `null`. | Le contrat de `Comparable.compareTo()` demande une `NullPointerException` pour `null`, et le code accède à `that.string`. |
 
-### Résultats
+### 5.4 Résultats
 
 | Mesure (PIT, classe `MediaType`) | `MediaTypeTest` seul | Avec `MediaTypeManualTest` |
 |---|---:|---:|
@@ -453,7 +434,7 @@ Les mesures se reproduisent avec :
 .\mvnw.cmd -pl tika-core clean test-compile org.pitest:pitest-maven:mutationCoverage
 ```
 
-### Mutant équivalent
+#### 5.4.1 Mutant équivalent
 
 Le mutant restant se trouve à la ligne 257 de `MediaType.java`, dans `parse()` :
 
@@ -480,47 +461,11 @@ La cause est que PIT exécute les mutants dans une même machine virtuelle. Dès
 
 Cette difficulté illustre un piège général : un test qui dépend d'un état statique peut réussir pour une raison étrangère à ce qu'il prétend vérifier, et seul le test de mutation nous l'a révélé.
 
-### Reproductibilité des mesures
-
-Pendant le travail, nos mesures locales de PIT ne correspondaient ni au rapport initial ni à la GitHub Action : nous obtenions par exemple 50 mutants tués au lieu de 46 pour les tests d'origine, et 85 sur 85 au lieu de 84 pour l'ensemble des tests.
-
-La cause était la compilation. Sur le poste de développement, les classes de `tika-core/target/classes` avaient été produites par un autre compilateur que le `javac` du JDK 17 utilisé par la GitHub Action, et Maven les réutilisait sans les recompiler. Deux compilateurs sont possibles sur ce poste, et nous n'avons pas déterminé lequel : celui de l'extension Java de VS Code, qui compile en arrière-plan, ou celui du JDK 27, installé en premier et utilisé pour les toutes premières compilations. Un compilateur différent produit un code légèrement différent (157 lignes exécutables au lieu de 156), et PIT, qui travaille sur le code compilé, ne génère alors pas exactement les mêmes mutants.
-
-En ajoutant `clean` à la commande de PIT, Maven recompile tout avec le `javac` du JDK 17. Les mesures locales sont alors identiques à celles de la GitHub Action, et le score des tests d'origine correspond exactement au rapport initial (46 tués, 33 non couverts, 6 survivants). Tous les chiffres de ce document ont été mesurés de cette façon.
-
-### Limites
-
-- Le score de mutation porte sur les mutants que PIT génère avec ses mutateurs par défaut. Il ne prouve pas l'absence de défaut dans `MediaType`.
-- Les tests du cache vérifient un détail d'implémentation (l'identité des objets retournés), et non un comportement promis par la Javadoc. Ils devraient être revus si le cache était retiré ou modifié.
-- Le test de la limite du cache (`testParseStopsCachingAtLimit`) accède par réflexion au champ privé `SIMPLE_TYPES` pour remplir le cache jusqu'à 10 000 entrées, puis le remet dans son état d'origine. C'est le seul moyen d'atteindre cette limite sans perturber les autres tests, mais le test dépend du nom et du type de ce champ privé.
-- Le cache statique rend aussi le verdict de PIT sensible à l'ordre d'exécution des mutants : un mutant peut laisser dans le cache une valeur qui influence les mutants suivants. Nous n'avons pas observé de variation entre deux exécutions sur une compilation propre, mais nous ne pouvons pas l'exclure.
-
-## Exécution dans la GitHub Action
-
-Tous les nouveaux tests s'exécutent dans une GitHub Action ajoutée au dépôt :
-
-- __Workflow :__ `tache 2 - tests MediaType`, défini dans `.github/workflows/tache2-tests-mediatype.yml`.
-- __Déclenchement :__ à chaque push et à chaque pull request sur `main`, ou à la main depuis l'onglet Actions (bouton « Run workflow »).
-- __Environnement :__ Ubuntu, JDK 17 (Temurin).
-
-| Job | Commande | Résultat |
-|---|---|---|
-| `tests MediaType` | `./mvnw -B -pl tika-core -am test -Pci "-Dtest=MediaType*Test" -Dsurefire.failIfNoSpecifiedTests=false` | Réussi |
-| `mutation PIT` | `./mvnw -B -pl tika-core test-compile org.pitest:pitest-maven:mutationCoverage` | Réussi : 84 mutants tués sur 85, couverture de lignes 156/156 |
-
-Le premier job exécute les trois jeux de tests de `MediaType` : les tests d'origine, les tests générés corrigés et les tests écrits à la main. Le profil `ci` vérifie aussi le formatage du code et les règles Checkstyle.
-
-Exécution de référence : https://github.com/ayaelb8/IFT3913_T2/actions/runs/38168580328
-
-Pour vérifier le résultat, ouvrir cette exécution, puis le job `tests MediaType` et son étape « Tests de MediaType » : le journal Maven donne le nombre de tests exécutés par classe et se termine par `BUILD SUCCESS`. Les rapports détaillés sont joints à l'exécution : `rapports-surefire` pour les tests et `rapport-pit` pour l'analyse de mutation. Il faut être connecté à GitHub pour lire les journaux et télécharger les rapports.
-
-Les autres workflows du dépôt (`main jdk17 build`, `main jdk21 build`, etc.) sont les workflows d'origine d'Apache Tika. Ils construisent l'ensemble du projet, ne font pas partie de cette tâche et ne fonctionnent pas forcément dans ce dépôt.
-
-## Comparaison des oracles : tests générés et tests écrits à la main
+### 5.5 Comparaison des oracles : tests générés et tests écrits à la main
 
 Un oracle est la partie d'un test qui décide si le comportement observé est correct : ici, les assertions. Nous comparons les oracles produits par ChatUniTest à ceux écrits à la main, c'est-à-dire ceux de `MediaTypeTest` (tests d'origine de Tika) et de `MediaTypeManualTest` (nos tests), selon trois critères : la pertinence, la spécificité et la présence de vérifications triviales.
 
-### Vue d'ensemble
+### 5.5.1 Vue d'ensemble
 
 | Type d'assertion | Tests générés (8 classes) | `MediaTypeTest` | `MediaTypeManualTest` |
 |---|---:|---:|---:|
@@ -563,7 +508,7 @@ Une vérification triviale réussit presque quel que soit le comportement du cod
 - __Les tests d'origine en contiennent aussi.__ `MediaTypeTest` compte 11 `assertNotNull`, dont plusieurs sur des valeurs qui ne peuvent pas être nulles, comme `assertNotNull(type.getParameters().keySet())`. Le test `testParseWithParams` vérifie que trois noms de paramètres sont présents, mais pas leurs valeurs. Un oracle écrit à la main n'est donc pas précis par nature.
 - __Dans nos tests manuels__, nous n'avons gardé aucun `assertNotNull`. Quand un résultat non nul est attendu, il est comparé directement à sa valeur, ce qui échoue aussi sur une valeur nulle.
 
-### Bilan de la comparaison
+### 5.6 Bilan de la comparaison
 
 | Critère | Oracles générés par l'IA | Oracles écrits à la main |
 |---|---|---|
@@ -573,6 +518,43 @@ Une vérification triviale réussit presque quel que soit le comportement du cod
 | Mutants détectés | 38/85 pour les tests générés qui réussissent. | 46/85 pour `MediaTypeTest`, 84/85 avec `MediaTypeManualTest` (le mutant restant est équivalent). |
 
 L'IA produit vite des oracles dont la forme est correcte, mais elle ne connaît pas le comportement réel de la classe : elle écrit ce que la méthode devrait faire d'après son nom. Un oracle écrit à la main demande de lire le code ou sa documentation, et c'est cette étape qui le rend pertinent. La comparaison avec `MediaTypeTest` montre aussi que cette lecture ne suffit pas : c'est l'analyse de mutation qui révèle si un oracle, humain ou généré, vérifie réellement quelque chose.
+
+
+### 5.7 Reproductibilité des mesures
+
+Pendant le travail, nos mesures locales de PIT ne correspondaient ni au rapport initial ni à la GitHub Action : nous obtenions par exemple 50 mutants tués au lieu de 46 pour les tests d'origine, et 85 sur 85 au lieu de 84 pour l'ensemble des tests.
+
+La cause était la compilation. Sur le poste de développement, les classes de `tika-core/target/classes` avaient été produites par un autre compilateur que le `javac` du JDK 17 utilisé par la GitHub Action, et Maven les réutilisait sans les recompiler. Deux compilateurs sont possibles sur ce poste, et nous n'avons pas déterminé lequel : celui de l'extension Java de VS Code, qui compile en arrière-plan, ou celui du JDK 27, installé en premier et utilisé pour les toutes premières compilations. Un compilateur différent produit un code légèrement différent (157 lignes exécutables au lieu de 156), et PIT, qui travaille sur le code compilé, ne génère alors pas exactement les mêmes mutants.
+
+En ajoutant `clean` à la commande de PIT, Maven recompile tout avec le `javac` du JDK 17. Les mesures locales sont alors identiques à celles de la GitHub Action, et le score des tests d'origine correspond exactement au rapport initial (46 tués, 33 non couverts, 6 survivants). Tous les chiffres de ce document ont été mesurés de cette façon.
+
+### 5.8 Limites
+
+- Le score de mutation porte sur les mutants que PIT génère avec ses mutateurs par défaut. Il ne prouve pas l'absence de défaut dans `MediaType`.
+- Les tests du cache vérifient un détail d'implémentation (l'identité des objets retournés), et non un comportement promis par la Javadoc. Ils devraient être revus si le cache était retiré ou modifié.
+- Le test de la limite du cache (`testParseStopsCachingAtLimit`) accède par réflexion au champ privé `SIMPLE_TYPES` pour remplir le cache jusqu'à 10 000 entrées, puis le remet dans son état d'origine. C'est le seul moyen d'atteindre cette limite sans perturber les autres tests, mais le test dépend du nom et du type de ce champ privé.
+- Le cache statique rend aussi le verdict de PIT sensible à l'ordre d'exécution des mutants : un mutant peut laisser dans le cache une valeur qui influence les mutants suivants. Nous n'avons pas observé de variation entre deux exécutions sur une compilation propre, mais nous ne pouvons pas l'exclure.
+
+## 6. Exécution dans la GitHub Action
+
+Tous les nouveaux tests s'exécutent dans une GitHub Action ajoutée au dépôt :
+
+- __Workflow :__ `tache 2 - tests MediaType`, défini dans `.github/workflows/tache2-tests-mediatype.yml`.
+- __Déclenchement :__ à chaque push et à chaque pull request sur `main`, ou à la main depuis l'onglet Actions (bouton « Run workflow »).
+- __Environnement :__ Ubuntu, JDK 17 (Temurin).
+
+| Job | Commande | Résultat |
+|---|---|---|
+| `tests MediaType` | `./mvnw -B -pl tika-core -am test -Pci "-Dtest=MediaType*Test" -Dsurefire.failIfNoSpecifiedTests=false` | Réussi |
+| `mutation PIT` | `./mvnw -B -pl tika-core test-compile org.pitest:pitest-maven:mutationCoverage` | Réussi : 84 mutants tués sur 85, couverture de lignes 156/156 |
+
+Le premier job exécute les trois jeux de tests de `MediaType` : les tests d'origine, les tests générés corrigés et les tests écrits à la main. Le profil `ci` vérifie aussi le formatage du code et les règles Checkstyle.
+
+Exécution de référence : https://github.com/ayaelb8/IFT3913_T2/actions/runs/38168580328
+
+Pour vérifier le résultat, ouvrir cette exécution, puis le job `tests MediaType` et son étape « Tests de MediaType » : le journal Maven donne le nombre de tests exécutés par classe et se termine par `BUILD SUCCESS`. Les rapports détaillés sont joints à l'exécution : `rapports-surefire` pour les tests et `rapport-pit` pour l'analyse de mutation. Il faut être connecté à GitHub pour lire les journaux et télécharger les rapports.
+
+Les autres workflows du dépôt (`main jdk17 build`, `main jdk21 build`, etc.) sont les workflows d'origine d'Apache Tika. Ils construisent l'ensemble du projet, ne font pas partie de cette tâche et ne fonctionnent pas forcément dans ce dépôt.
 
 [^1]: `tika-core/src/test/java/org/apache/tika/mime/MediaTypeTest.java`
 [^2]: `tika-core/target/site/jacoco/org.apache.tika.mime/index.html`
