@@ -176,7 +176,7 @@ Cette section explique ce que chaque classe générée cherche à vérifier, pui
 | `MediaType_parse_7_0` | `parse()` avec des types simples, des paramètres et des valeurs entre guillemets | 0 / 16 | Aucun test ne s'exécute à cause de `@InjectMocks` |
 | `MediaType_text_3_1` | `text()` avec des entrées jugées invalides | 11 / 11 | Réussit par accident; 6 tests identiques; aucun cas valide |
 
-Les huit classes de tests générées par ChatUniTest ont été exécutées individuellement, sans modifier leur contenu. D'après les rapports[^7], sur les 95 tests exécutés, 28 ont réussi, 48 ont échoué et 19 ont provoqué des erreurs d’exécution. Un test qui réussit n’est pas automatiquement bon, et inversement, un test qui échoue n’est pas automatiquement mauvais. Il faut vérifier les assertions et les comparer au comportement réel de MediaType. Les classes __`MediaType_equals_18_1_Test`__ et __`MediaType_text_3_1_Test`__ ont réussi tous leurs tests. 
+Les huit classes de tests générées par ChatUniTest ont été exécutées individuellement, sans modifier leur contenu. D'après les rapports, sur les 95 tests exécutés, 28 ont réussi, 48 ont échoué et 19 ont provoqué des erreurs d’exécution. Un test qui réussit n’est pas automatiquement bon, et inversement, un test qui échoue n’est pas automatiquement mauvais. Il faut vérifier les assertions et les comparer au comportement réel de MediaType. Les classes __`MediaType_equals_18_1_Test`__ et __`MediaType_text_3_1_Test`__ ont réussi tous leurs tests. 
 
 Dans __`MediaType_application_0_0_Test`__, 26 des 28 tests ont échoué. Par exemple, `testNullApplication()` attendait null, alors que le résultat obtenu était application/null. D’autres tests, comme `testApplicationWithCharset()` et `testApplicationWithParameters()`, attendaient une valeur non nulle, mais la méthode retournait null pour les entrées utilisées. Ces résultats montrent que les cas de test et les résultats attendus doivent être vérifiés à partir du comportement réel de la méthode `application()`.
 
@@ -229,7 +229,7 @@ Nous avons exécuté PIT sur `MediaType` avec les tests d'origine, puis avec les
 | Tests d'origine + tests générés corrigés | 65/85 (76 %) | 16 | 4 | 124/156 (79 %) |
 | Tests d'origine + tests générés corrigés + tests manuels | 84/85 (99 %) | 0 | 1 | 156/156 (100 %) |
 
-Les lignes « tests générés » portent sur la sortie brute de ChatUniTest, dont seuls les 28 tests qui réussissent sont pris en compte. Les lignes « tests générés corrigés » portent sur la version corrigée, dont les 95 tests réussissent. Le score des tests d'origine est celui du rapport PIT initial cité au début de ce document.
+Les lignes « tests générés » portent sur la sortie brute de ChatUniTest, dont seuls les 28 tests qui réussissent sont pris en compte[^7]. Les lignes « tests générés corrigés » portent sur la version corrigée[^8], dont les 95 tests réussissent. Le score des tests d'origine est celui du rapport PIT initial cité au début de ce document.
 
 __Les tests générés ne détectent donc pas tous les mutants.__ Seuls et sans correction, ils en détectent moins que les tests d'origine. Ajoutés aux tests d'origine, ils font passer le score de 54 % à 69 %, et 26 mutants restent non détectés. Même une fois corrigés, ils laissent 20 mutants non détectés.
 
@@ -554,3 +554,7 @@ Les autres workflows du dépôt (`main jdk17 build`, `main jdk21 build`, etc.) s
 [^4]: `tika-core/target/site/jacoco/org.apache.tika.mime/MediaType.html`
 [^5]: `tika-core/target/pit-reports/org.apache.tika.mime/MediaType.java.html`
 [^6]: `tika-core/src/main/java/org/apache/tika/mime/MediaType.java`
+[^7]: <img width="647" height="351" alt="image" src="https://github.com/user-attachments/assets/96282d79-e7f3-431c-8c06-2a483a36cb6d" />
+[^8]: <img width="636" height="356" alt="image" src="https://github.com/user-attachments/assets/00c97907-5fed-4a98-9cd4-135f01ba92df" />
+
+
