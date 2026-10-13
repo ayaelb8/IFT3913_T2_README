@@ -112,50 +112,20 @@ Le dépôt contient donc les tests générés à deux endroits :
 
 | Emplacement | Contenu |
 |---|---|
-| `tika-core/chatunitest-tests/org/apache/tika/mime/` | La sortie brute de ChatUniTest, non modifiée. Ce dossier ne fait pas partie des sources de test de Maven. C'est cette version qu'analysent les sections « Documentation des tests générés » et « Analyse de mutation ». |
-| `tika-core/src/test/java/org/apache/tika/mime/` | Les 8 mêmes classes, corrigées pour que tous leurs tests réussissent. C'est cette version que Maven exécute. Le fichier de suite n'y est pas. |
+| `tika-core/chatunitest-tests/org/apache/tika/mime/` | Les 9 fichiers Java générés par ChatUniTest, conservés séparément des tests du projet. Ce dossier contient les 8 classes de test générées ainsi que MediaType_Suite.java. |
+| `tika-core/src/test/java/org/apache/tika/mime/` | Les 8 mêmes classes, corrigées pour que tous leurs tests réussissent. C'est cette version que Maven exécute. Le fichier `MediaType_Suite.java` n'y est pas. |
 
-__Pourquoi ne pas avoir généré les tests directement dans le dossier de tests de Maven ?__ ChatUniTest permet de choisir son dossier de sortie (paramètre `testOutput`) ou de copier les tests générés dans `src/test` (commande `chatunitest:copy`). Nous avons gardé le dossier séparé, parce que les tests générés, placés tels quels dans `src/test`, font échouer le build :
+ChatUniTest permet de choisir son dossier de sortie (paramètre `testOutput`) ou de copier les tests générés dans `src/test` (commande `chatunitest:copy`). Nous avons gardé le dossier séparé, parce que les tests générés, placés tels quels dans `src/test`, font échouer le build :
 
-- `MediaType_Suite.java` ne compile pas. Une seule classe qui ne compile pas dans `src/test` bloque la compilation de tous les tests du module, y compris les tests d'origine.
-- 67 des 95 tests générés échouent, et Maven arrête le build dès qu'un test échoue.
-- Les fichiers générés n'ont pas l'en-tête de licence Apache et utilisent des imports en étoile et des imports inutilisés. Le build de Tika applique Checkstyle aux tests et refuse ces trois cas.
+- MediaType_Suite.java ne compile pas avec le classpath de tika-core : les imports org.junit.platform.runner.JUnitPlatform et org.junit.platform.suite.api.SelectClasses ne sont pas résolus. Une classe de test qui ne compile pas dans les sources de test intégrées peut bloquer la compilation de l'ensemble des tests du module.
+- Sur les 95 tests générés, 48 échouent et 19 produisent une erreur, soit 67 tests qui ne réussissent pas. Maven arrête le build dès qu'un test échoue.
+- Les fichiers générés n'ont pas l'en-tête de licence Apache attendu et utilisent des imports en étoile qu'on retrouve dans les huit classes de test en plus d'imports statiques comme `import static org.junit.jupiter.api.Assertions.*` et des imports classiques comme `import org.mockito.*`. Le build de Tika applique Checkstyle aux tests et refuse ces cas.
 
 Générer directement dans `src/test` n'aurait donc évité aucune correction. Le dossier séparé conserve en plus la sortie brute de l'IA, sans laquelle on ne pourrait plus vérifier combien de tests échouaient ni combien de corrections ont été nécessaires.
 
-### 3.2 Corrections apportées aux tests générés
+### 3.2 Corrections et intégration des tests générés
 
-Deux types de corrections ont été nécessaires : des ajustements techniques pour intégrer et exécuter les tests dans le projet, puis des modifications du contenu de certains tests générés pour faire réussir les 95 tests. Les problèmes d’intégration sont présentés en premier, suivis des corrections apportées aux tests eux-mêmes.
-
-À ce stade, 67 tests générés échouent encore. Leurs défauts viennent du contenu des tests eux-mêmes (assertions qui ne correspondent pas au comportement réel de `MediaType`, usage inutile de Mockito) et sont analysés dans « Documentation des tests générés ». Par exemple, les 16 erreurs de `MediaType_parse_7_0_Test` viennent toutes de l'annotation `@InjectMocks` appliquée à `MediaType`, que Mockito ne peut pas instancier.
-
-Pour que tous les nouveaux tests s'exécutent avec succès, nous avons corrigé une copie des 8 classes, placée dans `tika-core/src/test/java/org/apache/tika/mime/`. La sortie brute de ChatUniTest est conservée telle quelle dans `tika-core/chatunitest-tests/`, pour que les analyses de ce document restent vérifiables.
-
-Seules les modifications qui empêchent le test de réussir seront apportées, c'est-à-dire la donnée d'entrée, le résultat attendu ou l'usage de Mockito. Chaque résultat attendu corrigé a été déterminé à partir du code de `MediaType`.
-
-| Classe | Méthodes corrigées | Nature des corrections |
-|---|---:|---|
-| `MediaType_application_0_0_Test` | 6 sur 8 | Les données passent un sous-type (`json`) au lieu d'un type complet (`application/json`). Le type est vérifié sur la forme complète, le sous-type attendu n'est plus une chaîne vide, la valeur d'un paramètre est `utf-8` et non `charset=utf-8`, et la forme textuelle de la table des paramètres est `{param1=value1, param2=value2}`. Pour `null`, le résultat attendu est `application/null` et non `null`. |
-| `MediaType_audio_1_2_Test` | 4 sur 5 | Le paramètre est placé dans la chaîne (`mp3; custom=value`) au lieu d'être passé comme second argument. Les résultats attendus sont corrigés pour `null` (`audio/null`), pour la chaîne vide (`null`) et pour `invalid` (`audio/invalid`). Le mock inutilisé est retiré. |
-| `MediaType_compareTo_20_1_Test` | 3 sur 5 | Les tests vérifient le signe du résultat (`> 0`) au lieu de la valeur exacte `-1` ou d'une `NullPointerException`. |
-| `MediaType_equals_18_1_Test` | 0 sur 11 | Aucune. |
-| `MediaType_hasParameters_15_3_Test` | 10 sur 10 | Le mock est remplacé par un vrai objet `MediaType` construit avec les mêmes paramètres. Pour le cas « paramètres nuls », qui ne peut pas exister dans la classe, le test utilise un type sans paramètre. |
-| `MediaType_image_2_1_Test` | 8 sur 9 | La valeur d'un paramètre est `utf-8` et non `charset=utf-8`. Les 7 tests qui attendaient `null` pour une entrée jugée invalide attendent le type réellement retourné, par exemple `image/invalid`. |
-| `MediaType_parse_7_0_Test` | 7 sur 7 | `@InjectMocks` et `@Mock` sont retirés, et `parse()` est appelée comme méthode statique. L'attribut `nullValues = "null"` est ajouté à `@CsvSource`, sans quoi le mot `null` est lu comme une chaîne. `parse(null)` est attendu à `null` et non à une exception. Les formes attendues sont les formes normalisées (sans guillemets) et la valeur `utf-8` telle qu'elle est donnée. |
-| `MediaType_text_3_1_Test` | 0 sur 11 | Aucune. |
-| __Total__ | __38 sur 66__ | |
-
-S'y ajoutent, pour les huit classes, trois corrections de conformité exigées par le build de Tika : ajout de l'en-tête de licence Apache, remplacement des imports en étoile et suppression des imports inutilisés, ainsi que découpage des lignes dépassant 180 caractères.
-
-Après ces corrections, les 95 tests de la version corrigée réussissent et les violations de Checkstyle sont éliminées. Ce résultat confirme que les tests peuvent être intégrés au projet, mais ne garantit pas à lui seul leur qualité fonctionnelle. Celle-ci est examinée dans la section 3.3.
-
-### 3.3 Résultats des tests
-
-#### 3.3.1 Résultats des tests initiaux
-
-xxxxxxxxxxxxxxxxxxxxxxxxxxx  à ajouter xxxxxxxxxxxxxxxxxxxxxxxxxx
-
-#### 3.3.2 Défauts observés et critique des oracles
+#### Résultats des tests
 
 | Classe de test | Tests exécutés | Échecs | Erreurs |
 |---|---:|---:|---:|
@@ -169,13 +139,37 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxx  à ajouter xxxxxxxxxxxxxxxxxxxxxxxxxx
 | `MediaType_text_3_1` | 11 | 0 | 0 |
 | **Total** | **95** | **48** | **19** |
 
-Cette section explique ce que chaque classe générée cherche à vérifier, puis critique la qualité des tests à partir du code de `MediaType`[^6]. Il faut savoir que les méthodes `application()`, `audio()`, `image()` et `text()` font toutes la même chose : elles ajoutent un préfixe au sous-type reçu et appellent `parse()`. Par exemple, `image("jpeg")` retourne `parse("image/jpeg")`.
+Deux types de corrections ont été nécessaires : des ajustements techniques pour intégrer et exécuter les tests dans le projet, puis des modifications du contenu de certains tests générés pour faire réussir les 95 tests. À l’état brut, 67 exécutions de tests générés n’aboutissaient pas : 48 échecs et 19 erreurs. 
+
+Seules les modifications qui empêchent le test de réussir seront apportées. Chaque résultat attendu corrigé a été déterminé à partir du code de `MediaType`.
+
+| Classe | Méthodes corrigées | Nature des corrections |
+|---|---:|---|
+| `MediaType_application_0_0_Test` | 6 sur 8 | Les entrées utilisent des sous-types (`json`, `plain`, etc.) au lieu d'un type complet (`application/json`). Le type est vérifié sur la forme complète, le sous-type attendu n'est plus une chaîne vide, la valeur d'un paramètre est `utf-8` et non `charset=utf-8`, et la forme textuelle de la table des paramètres est `{param1=value1, param2=value2}`. Pour `null`, le résultat attendu est `application/null` et non `null`. |
+| `MediaType_audio_1_2_Test` | 4 sur 5 | Le paramètre est placé dans la chaîne (`mp3; custom=value`) au lieu d'être passé comme second argument. Les résultats attendus sont corrigés pour `null` (`audio/null`), pour la chaîne vide (`null`) et pour `invalid` (`audio/invalid`). Le mock inutilisé et l’initialisation de Mockito sont retirés. |
+| `MediaType_compareTo_20_1_Test` | 3 sur 5 | Les tests vérifient le signe du résultat (`> 0`) au lieu de la valeur exacte `-1` ou d'une `NullPointerException`. |
+| `MediaType_equals_18_1_Test` | 0 sur 11 | Aucune correction. |
+| `MediaType_hasParameters_15_3_Test` | 10 sur 10 | Le mock est remplacé par un vrai objet `MediaType` construit avec les mêmes paramètres. Pour le cas « paramètres nuls », qui ne peut pas exister dans la classe, le test utilise un type sans paramètre. |
+| `MediaType_image_2_1_Test` | 8 sur 9 | La valeur d'un paramètre est `utf-8` et non `charset=utf-8`. Les 7 tests qui attendaient `null` pour une entrée jugée invalide attendent le type réellement retourné, par exemple `image/invalid`. |
+| `MediaType_parse_7_0_Test` | 7 sur 7 | `@InjectMocks` et `@Mock` sont retirés, et `parse()` est appelée comme méthode statique. L'attribut `nullValues = "null"` est ajouté à `@CsvSource`, sans quoi le mot `null` est lu comme une chaîne. `parse(null)` est attendu à `null` et non à une exception. Les formes attendues sont les formes normalisées (sans guillemets) et la valeur `utf-8` telle qu'elle est donnée. |
+| `MediaType_text_3_1_Test` | 0 sur 11 | Aucune correction. |
+| __Total__ | __38 sur 66__ | |
+
+Les huit classes ont également été mises en conformité avec les exigences du build de Tika : ajout de l’en-tête de licence Apache, nettoyage des imports et respect de la limite de 180 caractères par ligne.
+
+Après ces corrections, les 95 tests de la version corrigée réussissent et les violations de Checkstyle sont éliminées. Ce résultat confirme que les tests peuvent être intégrés au projet, mais ne garantit pas à lui seul leur qualité fonctionnelle.
+
+### 3.3 Évaluation des tests générés
+
+#### 3.3.1 Défauts observés et critique des oracles
+
+Cette section explique ce que chaque classe générée cherche à vérifier, puis critique la qualité des tests à partir du code de `MediaType`[^6]. Il faut savoir que les méthodes `application()`, `audio()`, `image()` et `text()` suivent toutes le même principe : elles ajoutent un préfixe au sous-type reçu et appellent `parse()`. Par exemple, `image("jpeg")` retourne `parse("image/jpeg")`.
 
 | Classe de test | Ce que la classe vérifie | Réussis | Critique principale |
 |---|---|---:|---|
 | `MediaType_application_0_0` | `application()` avec des types valides, avec paramètres, invalides, nuls et vides | 2 / 28 | Passe un type complet (`application/json`) au lieu d'un sous-type (`json`) |
-| `MediaType_audio_1_2` | `audio()` avec un type valide, nul, vide et invalide | 1 / 5 | Appelle par réflexion une méthode publique; mock inutilisé |
-| `MediaType_compareTo_20_1` | L'ordre entre des types égaux, différents et `null` | 2 / 5 | Attend la valeur exacte `-1` et des exceptions qui ne sont jamais lancées |
+| `MediaType_audio_1_2` | `audio()` avec un type valide, nul, vide et invalide | 1 / 5 | Utilise inutilement la réflexion pour appeler une méthode publique, déclare un mock inutilisé et contient des attentes incorrectes pour plusieurs cas limites; un test cherche une surcharge `audio(String, Map)` inexistante. |
+| `MediaType_compareTo_20_1` | L'ordre entre des types égaux, différents et `null` | 2 / 5 | Attend la valeur exacte -1 au lieu de vérifier le signe du résultat et attend à tort une NullPointerException lorsque les paramètres diffèrent; l'exception attendue pour un argument null est cohérente avec l'implémentation. |
 | `MediaType_equals_18_1` | L'égalité selon le type, le sous-type et les paramètres | 11 / 11 | Valide, mais ne teste ni `null` ni un objet d'une autre classe |
 | `MediaType_hasParameters_15_3` | `hasParameters()` avec zéro, un ou plusieurs paramètres | 0 / 10 | Teste un mock de `MediaType`, et non la vraie classe |
 | `MediaType_image_2_1` | `image()` avec un sous-type valide, des paramètres et des entrées invalides | 1 / 9 | Suppose une validation qui n'existe pas |
@@ -207,18 +201,18 @@ __4. Des tests réussissent sans rien démontrer.__ Les 11 tests de `MediaType_t
 
 __5. Les tests sont redondants et mal nommés.__ Dans `MediaType_text_3_1_Test`, 6 des 11 tests utilisent exactement la même entrée sous des noms différents (`...InvalidKeyAndValue`, `...InvalidKeyAndValue2`, `...3`, `...4`). Dans `MediaType_equals_18_1_Test`, 9 des 11 tests vérifient la même propriété (deux objets différents ne sont pas égaux) avec des combinaisons très proches, et `testEqualsWithDifferentOrderOfParameters` n'échange pas l'ordre des paramètres : il inverse la clé et la valeur. Le nombre de tests donne donc une fausse impression de couverture.
 
-__6. Absence de ciblage délibéré des mutants initiaux.__ Les mutants survivants se trouvent dans `isSimpleName()`, accessible par `parse()`. Les tuer demande des entrées aux limites des caractères acceptés (par exemple une majuscule, un espace, ou les caractères `-`, `+`, `.` et `_`). Aucun test généré ne cible ces limites de façon délibérée, et la seule classe consacrée à `parse()` ne s'exécute pas. L'analyse de mutation nuance toutefois ce constat : ajoutés aux tests d'origine, les tests générés détectent 4 de ces 6 mutants, sans les viser, parce que plusieurs tests attendent `null` pour une chaîne mal formée. Les 2 mutants qui restent sont justement ceux qui demandent des entrées aux limites (voir « Analyse de mutation »).
+__6. Absence de ciblage délibéré des mutants initiaux.__ Les mutants survivants se trouvent dans `isSimpleName()`, accessible par `parse()`. Les tuer demande des entrées aux limites des caractères acceptés (par exemple une majuscule, un espace, ou les caractères `-`, `+`, `.` et `_`). Aucun test généré ne cible ces limites de façon délibérée, et la seule classe consacrée à `parse()` ne s'exécute pas. L'analyse de mutation nuance toutefois ce constat : ajoutés aux tests d'origine, les tests générés détectent 4 de ces 6 mutants, sans les viser, parce que plusieurs tests attendent `null` pour une chaîne mal formée. Les 2 mutants qui restent sont justement ceux qui demandent des entrées aux limites.
 
 #### Points positifs et limites des tests corrigés
 
-- Les 8 classes compilent sans modification et suivent les conventions du projet (JUnit 5, même paquet que la classe testée).
+- Les 8 classes corrigées s'exécutent et suivent les conventions du projet (JUnit 5, même paquet que la classe testée).
 - Les tests sont lisibles : noms descriptifs, structure préparation / action / vérification, tests paramétrés avec `@CsvSource` pour varier les entrées.
-- `MediaType_equals_18_1_Test` est utilisable tel quel : ses assertions correspondent au comportement réel de `equals()`.
+- `MediaType_equals_18_1_Test` est la classe la plus directement exploitable parmi les classes générées, ses assertions correspondent au comportement réel de `equals()`.
 - Le modèle pense à des catégories de cas pertinentes (valeur nulle, chaîne vide, paramètres, guillemets), même si les résultats attendus sont souvent faux.
 
 ### Bilan
 
-Sur 95 tests, 28 réussissent, et seule une partie d'entre eux vérifie réellement quelque chose : les 11 tests de `equals()`, et quelques tests isolés des autres classes. Les tests générés par un petit modèle local (`qwen2.5-coder:3b`) peuvent servir de point de départ pour trouver des idées de cas, mais chaque résultat attendu doit être revérifié à partir du code. Ce constat est à lire avec les limites matérielles décrites plus haut (défi 6) : la taille du modèle et le peu de code qu'il pouvait lire ont probablement pesé sur la qualité des tests. Dans leur état actuel, ils ne peuvent pas remplacer les tests écrits à la main dans `MediaTypeTest`.
+Sur 95 tests, 28 réussissent. Parmi eux, les 11 tests de `equals()` semblent vérifier des propriétés pertinentes, tandis que la valeur des autres tests doit être évaluée au cas par cas. Les tests générés par un petit modèle local (`qwen2.5-coder:3b`) peuvent servir de point de départ pour trouver des idées de cas, mais chaque résultat attendu doit être revérifié à partir du code. Ce constat est à lire avec les limites matérielles décrites plus haut (défi 6) : la taille du modèle et le peu de code qu'il pouvait lire ont probablement pesé sur la qualité des tests. Dans leur état actuel, ils ne peuvent pas remplacer les tests écrits à la main dans `MediaTypeTest`.
 
 ## 4. Analyse de mutation
 
@@ -286,8 +280,6 @@ __Mutants survivants (9).__
 | `parse()` et `isSimpleName()` : chemin rapide (2) | Ces mutants ne changent que la mise en cache des types simples ou le traitement des types avec paramètres, qu'aucun test généré réussi n'observe. |
 
 ### 4.4 Apport des tests générés aux tests d'origine
-
-xxxxxxxxxxxxxxxxxxxxxxxxx ajouter tableau score mutation test originaux xxxxxxxxxxxxxxxxxxxxxxxxx
 
 Ajoutés aux tests d'origine, les tests générés bruts détectent 13 mutants que `MediaTypeTest` ne détectait pas, et le score passe de 46 à 59 :
 
@@ -562,5 +554,3 @@ Les autres workflows du dépôt (`main jdk17 build`, `main jdk21 build`, etc.) s
 [^4]: `tika-core/target/site/jacoco/org.apache.tika.mime/MediaType.html`
 [^5]: `tika-core/target/pit-reports/org.apache.tika.mime/MediaType.java.html`
 [^6]: `tika-core/src/main/java/org/apache/tika/mime/MediaType.java`
-[^7]: `tika-core/rapports-chatunitest-initiaux/` (je pense pu que le path est accurate depuis que j’ai rejoué dans le code. Bref, à revoir)
-
