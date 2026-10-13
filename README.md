@@ -229,7 +229,7 @@ Nous avons exécuté PIT sur `MediaType` avec les tests d'origine, puis avec les
 | Tests d'origine + tests générés corrigés | 65/85 (76 %) | 16 | 4 | 124/156 (79 %) |
 | Tests d'origine + tests générés corrigés + tests manuels | 84/85 (99 %) | 0 | 1 | 156/156 (100 %) |
 
-Les lignes « tests générés » portent sur la sortie brute de ChatUniTest, dont seuls les 28 tests qui réussissent sont pris en compte. Les lignes « tests générés corrigés » portent sur la version corrigée, dont les 95 tests réussissent (voir « Corrections du contenu des tests générés »). Le score des tests d'origine est celui du rapport PIT initial cité au début de ce document.
+Les lignes « tests générés » portent sur la sortie brute de ChatUniTest, dont seuls les 28 tests qui réussissent sont pris en compte. Les lignes « tests générés corrigés » portent sur la version corrigée, dont les 95 tests réussissent. Le score des tests d'origine est celui du rapport PIT initial cité au début de ce document.
 
 __Les tests générés ne détectent donc pas tous les mutants.__ Seuls et sans correction, ils en détectent moins que les tests d'origine. Ajoutés aux tests d'origine, ils font passer le score de 54 % à 69 %, et 26 mutants restent non détectés. Même une fois corrigés, ils laissent 20 mutants non détectés.
 
