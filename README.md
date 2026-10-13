@@ -548,6 +548,9 @@ Pour vérifier le résultat, ouvrir cette exécution, puis le job `tests MediaTy
 
 Les autres workflows du dépôt (`main jdk17 build`, `main jdk21 build`, etc.) sont les workflows d'origine d'Apache Tika. Ils construisent l'ensemble du projet, ne font pas partie de cette tâche et ne fonctionnent pas forcément dans ce dépôt.
 
+## Signalement de l'utilisation de l'IAg
+Je reconnais avoir utilisé ChatGPT (GPT-6, OpenAI, https://chatgpt.com/) tout au long du projet comme outil d’assistance pour comprendre des concepts, explorer des pistes de solution, résoudre des problèmes techniques, reformuler certaines idées, générer des propositions de contenu et structurer certaines parties du travail.
+
 [^1]: `tika-core/src/test/java/org/apache/tika/mime/MediaTypeTest.java`
 [^2]: `tika-core/target/site/jacoco/org.apache.tika.mime/index.html`
 [^3]: `tika-core/target/pit-reports/org.apache.tika.mime/index.html`
@@ -556,5 +559,6 @@ Les autres workflows du dépôt (`main jdk17 build`, `main jdk21 build`, etc.) s
 [^6]: `tika-core/src/main/java/org/apache/tika/mime/MediaType.java`
 [^7]: <img width="647" height="351" alt="image" src="https://github.com/user-attachments/assets/96282d79-e7f3-431c-8c06-2a483a36cb6d" />
 [^8]: <img width="636" height="356" alt="image" src="https://github.com/user-attachments/assets/00c97907-5fed-4a98-9cd4-135f01ba92df" />
+
 
 
